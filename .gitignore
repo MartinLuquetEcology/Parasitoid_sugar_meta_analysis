@@ -3,5 +3,6 @@
 .RData
 .Ruserdata
 Data
-Outputs
+Outputs/*
+!Outputs/session_info.txt
 *.pdf

@@ -68,6 +68,8 @@ run_sens_ana <- FALSE
 load_sens_ana <- TRUE
   # To save figures again, set to TRUE
 save_figs <- FALSE
+  # To save session information again
+session_info <- FALSE
 
   # For reproducibility (jitter on plots, etc.)
 set.seed(177)
@@ -104,6 +106,8 @@ path.func <- "R/Functions"
 files.func <- list.files(path.func)
 path.files <- paste(path.func, files.func, sep = "/")
 invisible(sapply(path.files, source))
+
+sessionInfo()
 
 ```
 

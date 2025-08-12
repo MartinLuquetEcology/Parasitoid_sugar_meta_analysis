@@ -69,7 +69,7 @@ load_sens_ana <- TRUE
   # To save figures again, set to TRUE
 save_figs <- FALSE
   # To save session information again
-session_info <- FALSE
+save_session_info <- FALSE
 
   # For reproducibility (jitter on plots, etc.)
 set.seed(177)
@@ -107,7 +107,15 @@ files.func <- list.files(path.func)
 path.files <- paste(path.func, files.func, sep = "/")
 invisible(sapply(path.files, source))
 
-sessionInfo()
+if(save_session_info) {
+  cat("Session information:\n")
+  session_info <- sessionInfo()
+  print(session_info)
+  capture.output(session_info, file = "Outputs/session_info.txt")
+  
+}
+
+
 
 ```
 
@@ -117,6 +125,8 @@ Then, we load the data. Note that the data are downloaded directly from the [Ope
 
   # Data is downloaded from OSF if not already present in the Data folder
 if(!file.exists("Data/data_main.csv")) {
+  
+  if(!file.exists("Data")) dir.create("Data")
   
   pacman::p_load(osfr)
   osf_retrieve_file("https://osf.io/7sfgn?view_only=c61723dcf2e245d39d5462dc8f799d96") %>%

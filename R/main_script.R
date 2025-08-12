@@ -50,6 +50,8 @@ pacman::p_load(
   # Data is downloaded from OSF if not already present in the Data folder
 if( !file.exists("Data/data_main.csv") ) {
   
+  if(!file.exists("Data")) dir.create("Data")
+  
   pacman::p_load(osfr)
   osf_retrieve_file("https://osf.io/7sfgn?view_only=c61723dcf2e245d39d5462dc8f799d96") %>%
     osf_download(path = "Data")

@@ -1,0 +1,3223 @@
+---
+title: "Supporting Information - Does additional sugars in the field improve biological
+  control by parasitoids? A systematic review and meta  analysis"
+subtitle: "Supplementary Material 2 - Complete analysis"
+author: "Martin Luquet, Blas Lavandero, Emmanuel Desouhant, Bruno Jaloux"
+date: "`r format(Sys.time(), '%Y/%m/%d')` - first created on 2025/07/25"
+output: pdf_document
+urlcolor: blue
+toc: TRUE
+header-includes:
+    - \usepackage{caption}
+bibliography: references.bib  
+nocite: | 
+  @*
+
+---
+
+\captionsetup[table]{labelformat=empty}
+\captionsetup[figure]{labelformat=empty}
+
+```{r setup, include=FALSE}
+
+if(!require('knitr')) install.packages('knitr') 
+
+library('knitr') 
+
+knitr::opts_chunk$set(echo = TRUE, 
+                      message = FALSE,
+                      warning = FALSE)
+```
+
+# 1. Introduction
+
+This supplementary material provides a step by step description of the methodology we employed in the systematic review and meta-analysis which is the topic of the paper *Does additional sugars in the field improve biological control by parasitoids? A systematic review and meta  analysis*. This is a RMarkDown document displaying all produced outputs, including those that could not be presented in the paper main text.
+
+The analysis presented here follows the identification of papers suitable for systematic review and meta-analysis described in the Supplementary Material 1.
+
+Please note that this is intended as a living document. While the version submitted as an appendix to the paper will not change, the online version may be updated to improve the analysis description or correct mistakes (check the [GitHub](https://github.com/MartinLuquetEcology/Parasitoid_sugar_meta_analysis) repository).
+
+This document was greatly inspired from the supplementary material produced by J. Bishop and S. Nakagawa along with their paper *Quantifying crop pollinator dependence and its heterogeneity using multi-level meta-analysis* published in 2021 in the Journal of Applied Ecology (https://doi.org/10.1111/1365-2664.13830). We would like to thank them here for the inspiration.
+
+To make this appendix easier to read, here are a few clarifications on the terms used throughout the document:
+
+- **Paper**: a scientific article or book chapter (*e.g.* Balmer *et al.* 2014).
+
+- **Study**: an experiment or set of experiments carried out by the same authors, in the same place(s) at the same time(s). We made the distinction because the description of a single study can be shared across multiple papers. For instance, two papers Balmer *et al.* 2014 and Juric *et al.* 2015 describe results from the same experiment. For more information, see the column *Shared_exp* in the [dataset](https://osf.io/7sfgn).
+
+- **Experiment**: a given treatment/control comparison by a set of authors at a given place and during a given period. One experiment may be replicated over several seasons. There may be several experiments described in one study and/or paper.
+
+- **Experimental season**: one temporal replication of an experiment on a given season (the statistical unit in our analysis).
+
+# 2. Preparation
+
+First, we load the necessary packages and functions.
+
+```{r Initiation}
+
+rm(list = ls())
+
+# The following parameters can be changed to generate sensitivity analyses (takes some time) 
+# or to load pre-existing results (quicker), and to profile random effects (takes some time)
+
+  # To profile random effects, set to TRUE
+profile_random <- FALSE
+  # To run sensitivity analyses, set to TRUE
+run_sens_ana <- FALSE
+  # To load sensitivity analysis results, set to TRUE
+load_sens_ana <- TRUE
+  # To save figures again, set to TRUE
+save_figs <- FALSE
+
+  # For reproducibility (jitter on plots, etc.)
+set.seed(177)
+
+```
+
+```{r Packages and functions}
+
+# Load pacman
+if(!require('pacman')) { 
+  install.packages('pacman') 
+  library('pacman') 
+} 
+
+## To install orchaRd
+# library(pacman)
+# devtools::install_github("daniel1noble/orchaRd", ref = "main", force = TRUE)
+# pacman::p_load(devtools, tidyverse, metafor, patchwork, R.rsp, orchaRd, emmeans,
+#               ape, phytools, flextable)
+# from https://daniel1noble.github.io/orchaRd/
+
+# Load packages
+pacman::p_load(
+    # Data manipulation
+  tidyverse, 
+    # Meta-analysis
+  metafor, orchaRd, 
+    # Graphics
+  ggpubr, scales, ggtext, maps, ggnewscale
+  )
+
+# We'll use some custom functions, we load them from here
+path.func <- "R/Functions"
+files.func <- list.files(path.func)
+path.files <- paste(path.func, files.func, sep = "/")
+invisible(sapply(path.files, source))
+
+```
+
+Then, we load the data. Note that the data are downloaded directly from the [Open Science Framework project](https://osf.io/uk765/?view_only=c61723dcf2e245d39d5462dc8f799d96 ) corresponding to the paper (it will be updated if the dataset is changed).
+
+```{r Data}
+
+  # Data is downloaded from OSF if not already present in the Data folder
+if(!file.exists("Data/data_main.csv")) {
+  
+  pacman::p_load(osfr)
+  osf_retrieve_file("https://osf.io/7sfgn?view_only=c61723dcf2e245d39d5462dc8f799d96") %>%
+    osf_download(path = "Data")
+  
+}
+
+full.table <- read_delim("Data/data_main.csv", 
+                         delim = ";", escape_double = FALSE, 
+                         locale = locale(decimal_mark = ","), 
+                         trim_ws = TRUE)
+```
+
+Then, we prepare the data for the meta-analysis: this mainly consists in renaming a few columns or re-arranging some columns.
+
+```{r Arranging the full dataset}
+
+# Let's add study and experiment ID numbers
+full.table <- full.table %>%
+    # For disambiguation between "Paper" and "Study"
+  rename(Paper_name = "Study_Name") %>%
+    # Paper ID
+  mutate(
+    # Paper ID
+    Paper_ID = as.numeric(factor(Paper_name)),
+    # Study ID: if two papers share at least one experiment they have the same ID
+    sh_stud = ifelse(is.na(Shared_exp), Paper_name, Shared_exp),
+    Study_ID = as.numeric(factor(sh_stud)),
+    # Exp ID: if an experiment is shared across papers it has the same ID
+    Exp_ID = as.numeric(factor(paste(sh_stud, Exp_Nb))))
+    
+  ### Giving full names to sugar treatments
+full.table <- full.table %>%
+  mutate(Tmt_sugar_name = fct_recode(Tmt_sugar, 
+                                     'Artificial sugar source' = 'AS',
+                                     'Honeydew' = 'H')
+  )
+
+# Keeping first year value when a season overlaps over two years
+full.table <- full.table %>%
+  mutate(Exp_year_cal =  as.numeric(sub("\\-.*", "", Exp_year)))
+    # This generates a few NAs because of unreported years
+    # They won't be included in the meta-analysis anyway
+    # These correspond to 3 experiments, we can see them with the following code
+missing_years <-
+full.table %>%
+  filter(is.na(Exp_year_cal)) %>%
+  group_by(Paper_name, Exp_Nb, Included_in_meta_analysis) %>%
+  summarise()
+```
+
+In this analysis we will work at different nested levels (the papers, the experiments the paper, the seasons with the experiments, the effect sizes within the seasons). Thus, for convenience, we generate several data subsets corresponding to each of these levels.
+
+```{r Data subsets}
+
+# Data included in the meta-analysis
+full.table.ma <- full.table %>%
+  filter(Included_in_meta_analysis == "Yes")
+
+# Paper-wise dataset
+paper.table <- full.table %>%
+    # Included will tell if at least some data is included in the meta-analysis
+  group_by(Paper_name, Publication_year, Paper_ID, Study_ID) %>%
+  mutate(Included = ifelse("Yes" %in% Included_in_meta_analysis, "Yes", "No")) %>% 
+  group_by(Included, .add = T) %>%
+  summarise()
+
+# Study-wise dataset
+study.table <- full.table %>%
+  group_by(sh_stud, Study_ID) %>%
+  mutate(Included = ifelse("Yes" %in% Included_in_meta_analysis, "Yes", "No")) %>% 
+  group_by(Included, .add = T) %>%
+  summarise()
+
+# Experiment-wise dataset
+exp.table <- full.table %>%
+    # Just a lil trick here
+    # The experiment is distributed over 2 fields very close together
+    # We'll consider they have the same Long. and Lat. value for grouping purposes
+  mutate(Longitude = ifelse(Paper_name == "Evans_et_al_2010", -112, Longitude),
+         Latitude = ifelse(Paper_name == "Evans_et_al_2010", 41.86, Latitude)
+         ) %>%
+  group_by(sh_stud, Study_ID, Exp_Nb, Exp_ID, Latitude, Longitude,
+           Exp_type_1, Exp_type_2) %>%
+  mutate(Included = ifelse("Yes" %in% Included_in_meta_analysis, "Yes", "No"),
+         FirstY = Exp_year_cal[1]
+         ) %>% 
+  group_by(Included, FirstY, .add = T) %>%
+  summarise()
+
+# Experiment * treatment wise dataset
+  ### The thing here is that different treatments may have been tested in the same exp.
+  ### e.g. Cappuccino et al. 2003
+expTmt.table <- full.table %>%
+  mutate(Longitude = ifelse(Paper_name == "Evans_et_al_2010", -112, Longitude),
+         Latitude = ifelse(Paper_name == "Evans_et_al_2010", 41.86, Latitude)
+  ) %>%
+  group_by(sh_stud, Study_ID, Exp_Nb, Exp_ID, Latitude, Longitude, Exp_type_1, Exp_type_2,
+           Tmt_sugar_name, Tmt_spatial) %>%
+  mutate(Included = ifelse("Yes" %in% Included_in_meta_analysis, "Yes", "No"),
+         FirstY = Exp_year_cal[1]
+  ) %>% 
+  group_by(Included, FirstY, .add = T) %>%
+  summarise()
+
+# Experiment-season
+expSeas.table <- full.table %>%
+  group_by(sh_stud, Study_ID, Exp_ID, Latitude, Longitude, 
+           Exp_type_1, Exp_type_2, Exp_Nb, Exp_rep) %>%
+  # There are some cases when the same experiment-season runs over several years
+  # In such cases we keep track of the first year only
+  mutate(Exp_year_cal = Exp_year_cal[1],
+         Included = ifelse("Yes" %in% Included_in_meta_analysis, "Yes", "No")
+  ) %>%
+  group_by(Exp_year_cal, Included, .add = T) %>% 
+  summarise() %>%
+  # We remove cases with unreported years, at least for now
+  filter(!is.na(Exp_year_cal))
+
+# Experiment-season * treatment wise dataset
+expTmtSeas.table <- full.table %>%
+  mutate(Longitude = ifelse(Paper_name == "Evans_et_al_2010", -112, Longitude),
+         Latitude = ifelse(Paper_name == "Evans_et_al_2010", 41.86, Latitude)
+  ) %>%
+  group_by(sh_stud, Study_ID, Exp_ID, Latitude, Longitude, 
+           Exp_type_1, Exp_type_2, Exp_Nb, Exp_rep,
+           Tmt_sugar_name, Tmt_spatial) %>%
+  # There are some cases when the same experiment-season runs over several years
+  # In such cases we keep track of the first year only
+  mutate(Exp_year_cal = Exp_year_cal[1],
+         Included = ifelse("Yes" %in% Included_in_meta_analysis, "Yes", "No")
+  ) %>%
+  group_by(Exp_year_cal, Included, .add = T) %>% 
+  summarise() %>%
+  # We remove cases with unreported years, at least for now
+  filter(!is.na(Exp_year_cal))
+
+```
+
+# 3. Data overview
+
+Now that the data is all set up we can start exploring it. Before entering into the detailed content of papers, let's look at the main features of studies and experiments included in the review.
+
+## 3.1 Studies and experiments
+
+### 3.1.1 General overview
+
+First, let's look at the number of experiments and studies included (Table S1). Note that overall, about 75% of papers, studies, experiments and experiment-seasons that are eligible for the review are included in the meta-analysis. Remember that the number of *Studies* is a bit different from the number of *Papers* because some studies (e.g. set of experiments carried out at given times and places by a given team) could be shared across several papers.
+
+```{r General overview}
+
+full.table %>%
+  summarise(Nb_Papers = n_distinct(Paper_ID),
+         Nb_Studies = n_distinct(Study_ID),
+         Nb_Exp = n_distinct(Exp_ID),
+         Nb_ExpSeas = n_distinct(paste(Exp_ID, Exp_rep))
+  ) %>%
+  mutate(Subset = "All papers") %>%
+  bind_rows(
+    full.table %>%
+      filter(Included_in_meta_analysis == "Yes") %>%
+      summarise(Nb_Papers = n_distinct(Paper_ID),
+                Nb_Studies = n_distinct(Study_ID),
+                Nb_Exp = n_distinct(Exp_ID),
+                Nb_ExpSeas = n_distinct(paste(Exp_ID, Exp_rep))) %>%
+      mutate(Subset = "Included in meta analysis")
+  ) %>%
+  select(Subset, everything()) %>%
+  kable(caption = "Table S1. Number of papers, studies, experiments and experiment-seasons included in the review.")
+
+```
+
+### 3.1.2 World distribution of experiments
+
+Now, in Fig. S1 we can see where these experiments were located. As often, there is a strong bias towards the Western World.
+
+```{r World distribution, fig.cap = "Figure S1. World distribution of experiments included in the systematic review and meta-analysis"}
+
+ggplot() + 
+  borders("world", colour = "gray40", fill = "gray80") +
+  geom_point(
+    data = expTmt.table,
+    aes(x = Longitude, 
+        y = Latitude,
+        col = Tmt_sugar_name,
+        shape = Included),
+    size = 5) +
+  theme(axis.title = element_blank(),
+        legend.position = "bottom",
+        legend.box = "vertical") +
+  scale_color_discrete("Food source tested") +
+  scale_shape_manual("Included in the meta-analysis", values = c(23, 18)) +
+  ylim(-60, NA)
+
+```
+
+### 3.1.3 Dynamics of publication over time
+
+Now let's look at the evolution in the number of studies and experiments over time. To do so, we use the custom function `plotDyn()`. We can see that, although some papers were published from the 1960s, the dynamics of publication really started in the 1990s, with more and more papers published since then (Fig. S2). The vast majority of experiments described in the analysis were carried out in the last three decades (Fig. S3, S4).
+
+
+```{r Publication dynamics (papers), fig.cap = "Figure S2. Number of papers included in the systematic review since the publication year of the first extracted paper (1967)."}
+
+plotDyn(paper.table, "Publication_year", "Year of publication", "papers", F)
+
+```
+
+
+```{r Publication dynamics (experiments), fig.cap = "Figure S3. Number of experiments included in the systematic review over time. For experiments that were replicated over several years, only the first year of experiment is shown."}
+
+  plotDyn(exp.table, "FirstY", "First year of experiment", "experiments", F)
+
+```
+
+```{r Publication dynamics (experiments x seasons), fig.cap = "Figure S4. Number of experimental seasons included in the systematic review over time."}
+
+  plotDyn(expSeas.table, "Exp_year_cal", "Experimental year", "experiment-seasons", F)
+
+```
+
+### 3.1.4 Distribution of experiments over treatments
+
+Now, we can look how the treatments that we are interested in (*i.e.* food source type and spatial disposition) are distributed across these experiments. To do so, we generate a **systematic map** in Fig. S5:
+
+```{r Systematic map, fig.cap = "Figure S5. Number of experiments included in the meta-analysis (in bold) and in the systematic review (in parentheses) for each level of each moderator."}
+
+tmt_distrib <- 
+expTmt.table %>%
+  group_by(Tmt_sugar_name, Tmt_spatial) %>%
+  mutate(Nb_total = n()) %>%
+  filter(Included == "Yes") %>%
+  group_by(Nb_total, .add = T) %>%
+  summarise(Nb_included = n())
+
+tmt_distrib %>%
+  ungroup() %>%
+  complete(Tmt_spatial, Tmt_sugar_name, fill = list(Nb_total = 0,
+                                                    Nb_included = 0)) %>%
+  mutate(Nb = paste0("<b>", Nb_included, "</b> ", ' (', Nb_total, ')')) %>%
+  ggplot(aes(x = Tmt_spatial, y = Tmt_sugar_name, fill = Nb_included)) +
+  geom_tile() +
+  ggtext::geom_richtext(aes(label = Nb), color = "white", size = 4)  +
+  scale_fill_gradient("Number eligible for MA",
+                      low = "#075AFF",
+                      high = "#FF0000") +
+  ggtitle("Number of experiments for each treatment",
+          subtitle = "<b>Eligible for meta-analysis</b> (total)") +
+  xlab("Spatial treatment") +
+  ylab("Food source treatment") +
+  theme(
+    plot.subtitle = element_markdown(),
+    legend.position = "none"
+  )
+
+```
+
+We can also look at how experiments are distributed between different study designs in Fig. S6. Please refer to the [variable description file on the project repository](https://osf.io/fuda5?view_only=c61723dcf2e245d39d5462dc8f799d96) for a thorough description of each experimental type. Studies were mainly experimental (*i.e.* different treatments compared in the same systems) rather than observational (*i.e* observation of different fields with different treatments).
+
+```{r Experimental designs, fig.cap = "Figure S6. Distribution of experiments across experimental types. Please refer to the variable description file on the project repository for a complete description of each type of experiment."}
+
+ggplot(exp.table, aes(x = Exp_type_1, fill = Exp_type_2)) +
+  geom_bar() + 
+  xlab(NULL) + 
+  ylab("Number of experiments") +
+  scale_fill_discrete("Type of experiment") +
+  ggtitle("Number of experiment of each type")
+
+```
+
+
+## 3.2 Systems, plants and insects
+
+Now, we can look at the distribution of ecological systems and taxa studied across experiments. Let us work only on the data included in the meta-analysis in this section.
+
+### 3.2.1 Cropping systems
+
+First, let us look what kind of (agro)ecosystems were studied in the selected papers - crop types (cereals, vegetables, fruit trees...) and species. First, we work at the experiment-crop level to check in how many experiments a given crop type was studied (Fig. S7, Table S2). Note that in some cases multiple crops can be studied in the same experiment (e.g. Tilman *et al.* 2015, Pollier *et al.* 2019): the numbers shown below are the number of experiments including each crop.
+
+```{r Crop types exp, fig.cap = "Figure S7. Distribution of crop types across experiments. The length of individual bars correspond to the number of experiments including each crop type, but multiple crops can be studied in the same experiment. Crop types with fewer than 3 occurrences were classified as 'Other'."}
+expCrop.tab <- full.table.ma %>%
+  group_by(sh_stud, Exp_ID, Crop_type_1, Crop_type_2, Crop) %>%
+  summarise() %>%
+  arrange(Exp_ID) %>%
+    # Adding an "other" category for crop types with <3 cases
+  group_by(Crop_type_1, Crop_type_2) %>%
+  mutate(Crop_type_main = ifelse(n() >= 3, Crop_type_2, "Other"))
+
+  # Graphics:
+ggplot(expCrop.tab, aes(x = Crop_type_main, fill = Crop_type_main)) +
+  facet_grid(~ Crop_type_1, scale="free", space='free') +
+  geom_bar()+
+  theme(axis.title = element_blank()) +
+  ggtitle("Number of occurrences when a given crop was studied",
+          subtitle = "Experiment level") +
+  theme(legend.position = "none") +
+  scale_y_continuous(breaks = scales::breaks_pretty())
+
+  # Here is a table to have the frequency of each crop:
+expCrop.tab %>%
+  group_by(Crop_type_1, Crop_type_2, Crop) %>%
+  summarise(nb = n()) %>%
+  arrange(desc(nb)) %>%
+  kable(caption = "Table S2. Details about the distribution of crop types and species across experiments, by descending order of species occurrence.")
+
+```
+
+We can now do the same thing at the experiment*season level (Fig. S7 and S8, Table S3).
+
+
+```{r Crop types exp-season, fig.cap = "Figure S8. Distribution of crop types across experimental seasons. The length of individual bars correspond to the number of experiments including each crop type, but multiple crops can be studied in the same experiment. Crop types with fewer than 3 occurrences were classified as 'Other'."}
+expCropSeas.tab <- full.table.ma %>%
+  group_by(sh_stud, Exp_ID, Exp_rep, Crop_type_1, Crop_type_2, Crop) %>%
+  summarise() %>%
+  arrange(Exp_ID) %>%
+  group_by(Crop_type_1, Crop_type_2) %>%
+  mutate(Crop_type_main = ifelse(n() >= 3, Crop_type_2, "Other"))
+
+  # Graphics:
+expCropSeas.tab %>%
+  ggplot(aes(x = Crop_type_main, fill = Crop_type_main)) +
+  facet_grid(~Crop_type_1, scale="free", space='free') +
+  geom_bar()+
+  theme(axis.title = element_blank()) +
+  theme(axis.title = element_blank()) +
+  ggtitle("Number of occurrences when a given crop was studied",
+          subtitle = "Experimental season level") +
+  theme(legend.position = "none") +
+  scale_y_continuous(breaks = scales::breaks_pretty())
+
+```
+
+```{r Crop species exp-season, fig.cap = "Figure S9. Distribution of studied crop species across experimental seasons. The length of individual bars correspond to the number of experiments including each crop type, but multiple crops can be studied in the same experiment. Crop types with fewer than 3 occurrences were classified as 'Other'."}
+
+  # Now let's look at what crop species were studied
+  # at the experiment*season level
+  # Again we create an "Other" category here (at least 3 experiments)
+expCropSeas.tab <- expCropSeas.tab %>%
+  group_by(Crop_type_1, Crop_type_main, Crop) %>%
+  mutate(Crop_main = ifelse(n() >= 3, Crop, "Other")) %>%
+  mutate(Crop_main_name = gsub("_", " ", Crop_main)) %>%
+  mutate(Crop_main_name = ifelse(Crop_main_name == "Other",
+                                 Crop_main_name,
+                                 paste0("italic('", Crop_main_name, "')")))
+
+  # Graphics:
+ggplot(expCropSeas.tab, aes(x = Crop_type_main, fill = fct_rev(Crop_main_name))) +
+  facet_grid(~ Crop_type_1, scale = "free", space = 'free') +
+  geom_bar() + 
+  theme(axis.title = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1)) +
+    # italicsGraph: a custom wrapper to write species name in italics
+  scale_fill_discrete(labels = italicsGraph,
+                      name = "Crop species") +
+  ggtitle("Number of occurrences when a given crop species was studied",
+          subtitle = "Experimental season level") +
+  scale_y_continuous(breaks = scales::breaks_pretty())
+
+  # Table:
+expCropSeas.tab %>%
+  group_by(Crop_type_1, Crop_type_2, Crop) %>%
+  summarise(nb = n()) %>%
+  arrange(desc(nb)) %>%
+  kable(caption = "Table S3. Details about the distribution of crop types and species across experimental seasons, by descending order of species occurrence.")
+
+```
+### 3.2.2 Hosts
+
+Now, let us look what kind of parasitoid host ("pests") taxa were mainly studied in the selected papers. We proceed in the same way as for crop systems: we first investigate responses at the experiment-host level, then at the experiment-season-host level. "Responses" here correspond to any case when a given host species was studied, regardless of the variable (may it be pest density, pest damage, parasitism rate...). We can start by investigating what host orders and families were mainly studied (Fig. S9, S10, Table S4, S5). As for crops, note that several host orders or families could be studied simultaneously in the same experiment. When a different response was evaluated for each of these orders or families, they were considered as different occurrences in the figures below. When responses were pooled, they were considered as a single occurrence under the "Various" category. Such cases can be investigated further in Table S6. Besides, note that multiple variables (pest density, parasitism rate...) could be evaluated on the same pest taxon in the same experiment: for these descriptive analyses, these were considered as a single occurrence.
+
+```{r Host families exp, fig.cap = "Figure S9. Distribution of studied host ('pest') families across experiments. The length of individual bars correspond to the number of experiments when a given host family was studied, but multiple hosts could be studied in the same experiment. When responses of multiple host families were evaluated with a single value, these were classified as 'Various'."}
+
+      # First we make a table at the pest family level
+      # We create a table to consider any pest family occurrence in a given experiment,
+      # and season, regardless of variable
+      # (Pest density, damage, parasitism rate, sex ratio)
+      # We de-duplicate any pest studied in any experiment and season
+expPestFam.tab <- full.table.ma %>%
+  filter(!is.na(Pest)) %>%
+  group_by(sh_stud, Exp_ID, Pest_order, Pest_family) %>%
+  summarise() %>%
+  arrange(Exp_ID)
+
+# Table:
+expPestFam.tab %>%
+  group_by(Pest_order, Pest_family) %>% 
+  summarise(nb = n()) %>%
+  arrange(desc(nb)) %>%
+  kable(caption = "Table S4. Number of cases when each host family was studied (any variable) at the experimental level.")
+
+# Graphics:
+expPestFam.tab %>%
+  group_by(Pest_family) %>%
+  mutate(nb = n()) %>%
+  mutate(Pest_family_main = ifelse(nb >= 3, Pest_family, "Other")) %>%
+  mutate(Pest_order_family = paste(Pest_order, Pest_family_main, sep = ": ")) %>%
+  ggplot(aes(x = Pest_order, fill = Pest_order_family)) + 
+  geom_bar() +
+  theme(axis.title = element_blank()) +
+  ggtitle("Number of occurrences when a given host family was studied",
+          subtitle = "Experiment level") +
+  scale_fill_discrete("Host order:family") +
+  scale_y_continuous(breaks = scales::breaks_pretty())
+```
+```{r Host families exp-season, fig.cap = "Figure S10. Distribution of studied host ('pest') families across experimental seasons. The length of individual bars correspond to the number of experimental seasons when a given host family was studied, but multiple hosts could be studied in the same experimental season.When responses of multiple host families were evaluated with a single value, these were classified as 'Various'."}
+
+# Same at the experiment*season level
+expSeasPestFam.tab <- full.table.ma %>%
+  filter(!is.na(Pest)) %>%
+  group_by(sh_stud, Exp_ID, Exp_rep, Pest_order, Pest_family) %>%
+  summarise() %>%
+  arrange(Exp_ID)
+
+# Table:
+expSeasPestFam.tab %>%
+  group_by(Pest_order, Pest_family) %>% 
+  summarise(nb = n()) %>%
+  arrange(desc(nb)) %>%
+  kable(caption = "Table S5. Number of cases when each host family was studied (any variable) at the experiment-season level.")
+
+# Graphics: 
+expSeasPestFam.tab %>%
+  group_by(Pest_family) %>%
+  mutate(nb = n()) %>%
+  mutate(Pest_family_main = ifelse(nb >= 3, Pest_family, "Other")) %>%
+  mutate(Pest_order_family = paste(Pest_order, Pest_family_main, sep = ": ")) %>%
+  ggplot(aes(x = Pest_order, fill = Pest_order_family)) + 
+  geom_bar() +
+  theme(axis.title = element_blank(),
+        legend.position = "bottom",
+        legend.text = element_text(size = 7),
+        legend.key.size = unit(0.28, "cm"),
+        legend.title = element_blank()) +
+  ggtitle("Number of occurrences when a given host family was studied",
+          subtitle = "Experiment level * season") +
+  scale_fill_discrete("Host order:family") +
+  scale_y_continuous(breaks = scales::breaks_pretty())
+
+# What lies in the "Various" category ?
+  # Other orders represented, e.g. Orthoptera
+full.table.ma %>%
+  filter(Pest_order == "Various") %>%
+  group_by(sh_stud, Pest_order, Pest_species_detail) %>%
+  summarise() %>%
+  kable(caption = "Table S6. Cases when responses of multiple host orders were studied in the same experiment as a single response.")
+
+```
+We can now look into more details at what host species wee mainly studied. Figures S11 and S12 and Table S7 and S8 show the number of cases when a given species was studied on its own, *i.e.* when specific measurements were made on that species (which represent the majority of cases). Table S9 shows the number of cases when measurements were made on given species when their response were evaluated in pools (example: several aphid species were identified but "aphid density" was evaluated as a single measurement)
+
+```{r Host species exp, fig.cap = "Figure S11. Distribution of studied host ('pest') species across experiments. The length of individual bars correspond to the number of experiments when a given host species was studied, but multiple species could be studied in the same experiment. Species that were studied in fewer than 3 experiments were classified as 'Other'. Cases when responses from multiple host species were evaluated with a single value are not shown here."}
+
+
+  ### Now let's see what pest species were mostly studied
+    # Keeping only measurements made on one species only
+
+  # Experiment level
+
+# Graphics
+full.table.ma %>%
+  filter(Pest_N == "Single") %>%
+  group_by(sh_stud, Exp_ID, Pest_order, Pest_family, Pest_genus, Pest) %>%
+  summarise() %>%
+  arrange(Exp_ID) %>%
+  ungroup() %>%
+  group_by(Pest) %>%
+  mutate(nb = n(),
+         Pest_main = ifelse(nb >=3, Pest, "Other"),
+         Pest_name = ifelse(Pest_main == "Other",
+                            Pest_main,
+                            paste0("italic('", Pest_main, "')")),
+         Pest_name = gsub("_", " ", Pest_name)) %>% 
+  ggplot(aes(y = Pest_family, fill = fct_rev(Pest_name))) + 
+  facet_grid(Pest_order ~., space = "free", scales = "free") +
+  geom_bar() +
+  theme(axis.title = element_blank()) + 
+  scale_fill_discrete("Pest species",
+                      labels = italicsGraph) +
+  ggtitle("Host species that were studied the most",
+          subtitle = "Experiment level") +
+  xlab("Number of occurrences") +
+  scale_x_continuous(breaks = scales::breaks_pretty())
+
+# Table
+full.table.ma %>%
+  filter(Pest_N == "Single") %>%
+  group_by(sh_stud, Exp_ID, Pest_order, Pest_family, Pest_genus, Pest) %>%
+  summarise() %>%
+  group_by(Pest_order, Pest_family, Pest) %>%
+  summarise(nb = n()) %>%
+  arrange(desc(nb)) %>%
+  kable(caption = "Table S7. Number of cases when each host species was studied at the experiment level (any variable considered). Cases when responses from multiple host species were evaluated with a single value are not shown here.")
+
+```
+
+```{r Host species exp-season, fig.cap = "Figure S12. Distribution of studied host ('pest') species across experimental seasons. The length of individual bars correspond to the number of experiments when a given host species was studied, but multiple species could be studied in the same experimental season. Species that were studied in fewer than 3 experimental seasons were classified as 'Other'. Cases when responses from multiple host species were evaluated with a single value are not shown here."}
+
+  # Season level
+
+# Graphics
+full.table.ma %>%
+  filter(Pest_N == "Single") %>%
+  group_by(sh_stud, Exp_ID, Exp_rep, Pest_order, Pest_family, Pest_genus, Pest) %>%
+  summarise() %>%
+  arrange(Exp_ID) %>%
+  ungroup() %>%
+  group_by(Pest) %>%
+  mutate(nb = n(),
+         Pest_main = ifelse(nb >=3, Pest, "Other"),
+         Pest_name = ifelse(Pest_main == "Other",
+                            Pest_main,
+                            paste0("italic('", Pest_main, "')")),
+         Pest_name = gsub("_", " ", Pest_name)) %>% 
+  ggplot(aes(y = Pest_family, fill = fct_rev(Pest_name))) + 
+  facet_grid(Pest_order ~., space = "free", scales = "free") +
+  geom_bar() +
+  theme(axis.title = element_blank()) + 
+  scale_fill_discrete("Pest species",
+                      labels = italicsGraph) +
+  ggtitle("Host species that were studied the most",
+          subtitle = "Experimental season level")
+
+# Table
+full.table.ma %>%
+  filter(Pest_N == "Single") %>%
+  group_by(sh_stud, Exp_ID, Exp_rep, Pest_order, Pest_family, Pest_genus, Pest) %>%
+  summarise() %>%
+  group_by(Pest_order, Pest_family, Pest) %>%
+  summarise(nb = n()) %>%
+  arrange(desc(nb)) %>%
+  kable(caption = "Table S8. Number of cases when each host species was studied at the experimental season level (any variable considered). Cases when responses from multiple host species were evaluated with a single value are not shown here.")
+
+
+# Let's have a look at cases when species where studied in pools
+pooled_species_pest <- 
+full.table.ma %>%
+  filter(!is.na(Pest_species_detail)) %>%
+  group_by(sh_stud, Exp_ID, Exp_rep, Pest_species_detail) %>%
+  summarise() %>%
+  filter(grepl("_", Pest_species_detail))
+
+unlist(str_split(pooled_species_pest$Pest_species_detail, ",\\s*")) %>%
+  grep("_", ., value = TRUE) %>%
+  gsub("_\\([^)]*\\)", "", .) %>%
+  .[!grepl("spp.", .)] %>% # Only one case : Manduca_spp.
+  tibble(Species = .) %>%
+  count(Species) %>%
+  arrange(desc(n)) %>%
+  kable(caption = "Table S9. Number of occurrences when a given host species was studied at the experimental season level (any variable considered), in cases when responses from multiple species were pooled together.")
+
+```
+
+### 3.2.3 Parasitoids
+
+We can now do the same kind of analysis for parasitoid taxa. We follow the same procedure: results are shown from Fig S13 to S16 and Table S10 to S15.
+
+```{r Parasitoid families exp, fig.cap = "Figure S13. Distribution of studied parasitoid families across experiments (regardless of the variable investigated). The length of individual bars correspond to the number of experiments when a given parasitoid family was studied, but multiple parasitoid families could be studied in the same experiment. When responses of multiple parasitoid families were evaluated with a single value, these were classified as 'Various'."}
+
+      ## We follow the same procedure
+
+      ## Let's first look how many occurrence of parasitoid orders we have
+        ## at the experiment-season
+full.table.ma %>%
+  filter(!is.na(Parasitoid)) %>%
+  group_by(sh_stud, Exp_ID, Parasitoid_order) %>%
+  summarise() %>%
+  group_by(Parasitoid_order) %>%
+  summarise(nb = n()) %>%
+  kable(caption = "Table S10. Number of occurrences when a given parasitoid order was studied, at the experiment level")
+    # As we could expect, mainly Hymenoptera
+
+    ### Let's visualise this, first at the Experiment level, then at the 
+    ### Experiment level
+full.table.ma %>%
+  filter(!is.na(Parasitoid)) %>%
+  group_by(sh_stud, Exp_ID, Parasitoid_order, Parasitoid_family) %>%
+  summarise() %>%
+  ungroup() %>%
+  group_by(Parasitoid_order) %>%
+  mutate(nb_order = n()) %>%
+  group_by(paste(Parasitoid_order, Parasitoid_family)) %>%
+  mutate(nb_family = n()) %>%
+  mutate(Parasitoid_order_main = ifelse(nb_order >= 10, Parasitoid_order, "Other")) %>%
+  mutate(Parasitoid_family_main = ifelse(Parasitoid_order_main != "Other",
+                                    ifelse(nb_family >= 3,
+                                           paste(Parasitoid_order_main, Parasitoid_family, sep = ": "),
+                                           "Other"),
+                                    Parasitoid_order)) %>%
+  ggplot(aes(x = Parasitoid_order_main, fill = Parasitoid_family_main)) + 
+  geom_bar() +
+  theme(axis.title = element_blank()) +
+  ggtitle("Number of occurrences when a given Parasitoid order or family was studied",
+          subtitle = "Experiment level") +
+  scale_fill_discrete("Parasitoid order:family") +
+  guides(fill = guide_legend(ncol = 1))
+
+full.table.ma %>%
+  filter(!is.na(Parasitoid)) %>%
+  group_by(sh_stud, Exp_ID, Parasitoid_order, Parasitoid_family) %>%
+  summarise() %>%
+  group_by(paste(Parasitoid_order, Parasitoid_family)) %>%
+  mutate(Nb_exp = n()) %>%
+  group_by(Parasitoid_order, Parasitoid_family, Nb_exp) %>%
+  summarise() %>%
+  arrange(desc(Nb_exp)) %>%
+  kable(caption = "Table S11. Number of occurrences when a given parasitoid family was studied, at the experiment level")
+
+
+```
+
+
+```{r Parasitoid families exp-season, fig.cap = "Figure S14. Distribution of studied parasitoid families across experimental seasons (regardless of the variable investigated). The length of individual bars correspond to the number of experimental seasons when a given parasitoid family was studied, but multiple parasitoid families could be studied in the same experiment. When responses of multiple parasitoid families were evaluated with a single value, these were classified as 'Various'."}
+
+### Season level
+full.table.ma %>%
+  filter(!is.na(Parasitoid)) %>%
+  group_by(sh_stud, Exp_ID, Exp_rep, Parasitoid_order, Parasitoid_family) %>%
+  summarise() %>%
+  ungroup() %>%
+  group_by(Parasitoid_order) %>%
+  mutate(nb_order = n()) %>%
+  group_by(paste(Parasitoid_order, Parasitoid_family)) %>%
+  mutate(nb_family = n()) %>%
+  mutate(Parasitoid_order_main = ifelse(nb_order >= 20, Parasitoid_order, "Other")) %>%
+  mutate(Parasitoid_family_main = ifelse(Parasitoid_order_main != "Other",
+                                         ifelse(nb_family >= 3,
+                                                paste(Parasitoid_order_main, Parasitoid_family, sep = ": "),
+                                                "Other"),
+                                         Parasitoid_order)) %>%
+  ggplot(aes(x = Parasitoid_order_main, fill = Parasitoid_family_main)) + 
+  geom_bar() +
+  theme(axis.title = element_blank()) +
+  ggtitle("Number of occurrences when a given Parasitoid order or family was studied",
+          subtitle = "Experimental season level") +
+  scale_fill_discrete("Parasitoid order:family") +
+  guides(fill = guide_legend(ncol = 1))
+
+full.table.ma %>%
+  filter(!is.na(Parasitoid)) %>%
+  group_by(sh_stud, Exp_ID, Exp_rep, Parasitoid_order, Parasitoid_family) %>%
+  summarise() %>%
+  group_by(paste(Parasitoid_order, Parasitoid_family)) %>%
+  mutate(Nb_exp = n()) %>%
+  group_by(Parasitoid_order, Parasitoid_family, Nb_exp) %>%
+  summarise() %>%
+  arrange(desc(Nb_exp)) %>%
+  kable(caption = "Table S12. Number of occurrences when a given parasitoid family was studied, at the experiment level")
+
+```
+
+
+```{r Parasitoid species exp, fig.cap = "Figure S15. Distribution of studied parasitoid species across experiments (regardless of the variable investigated). The length of individual bars correspond to the number of experiments when a given parasitoid species was studied, but multiple parasitoid species could be studied in the same experiment. Species that were studied in fewer than 3 experiments were classified as 'Other'. Cases when responses from multiple host species were evaluated with a single value are not shown here."}
+
+### Now let's see what parasitoid species were mostly studied
+# Keeping only measurements made on one species only
+
+# Experiment
+full.table.ma %>%
+  filter(Parasitoid_N == "Single") %>%
+  group_by(sh_stud, Exp_ID, Parasitoid_order, Parasitoid_family, Parasitoid_genus, Parasitoid) %>%
+  summarise() %>%
+  arrange(Exp_ID) %>%
+  ungroup() %>%
+  group_by(Parasitoid) %>%
+  mutate(nb = n(),
+         Parasitoid_main = ifelse(nb >=3, Parasitoid, "Other"),
+         Parasitoid_name = ifelse(Parasitoid_main == "Other",
+                            Parasitoid_main,
+                            paste0("italic('", Parasitoid_main, "')")),
+         Parasitoid_name = gsub("_", " ", Parasitoid_name)) %>% 
+  ggplot(aes(y = Parasitoid_family, fill = fct_rev(Parasitoid_name))) + 
+  facet_grid(Parasitoid_order ~., space = "free", scales = "free") +
+  geom_bar() +
+  theme(axis.title = element_blank()) + 
+  scale_fill_discrete("Parasitoid species",
+                      labels = italicsGraph) +
+  ggtitle("Species that were mostly studied",
+          subtitle = "Experiment level")
+
+full.table.ma %>%
+  filter(Pest_N == "Single") %>%
+  group_by(sh_stud, Exp_ID, Pest_order, Pest_family, Pest_genus, Pest) %>%
+  summarise() %>%
+  group_by(Pest_order, Pest_family, Pest) %>%
+  summarise(nb = n()) %>%
+  arrange(desc(nb)) %>%
+  kable(caption = "Table S13. Number of cases when each parasitoid species was studied at the experiment level (any variable considered). Cases when responses from multiple parasitoid species were evaluated with a single value are not shown here.")
+
+```
+
+```{r Parasitoid species exp-season, fig.cap = "Figure S16. Distribution of studied parasitoid species across experimental seasons (regardless of the variable investigated). The length of individual bars correspond to the number of experimental seasons when a given parasitoid species was studied, but multiple parasitoid species could be studied in the same experimental season. Species that were studied in fewer than 3 experimental seasons were classified as 'Other'. Cases when responses from multiple host species were evaluated with a single value are not shown here."}
+
+# Season level
+full.table.ma %>%
+  filter(Parasitoid_N == "Single") %>%
+  group_by(sh_stud, Exp_ID, Exp_rep, Parasitoid_order, Parasitoid_family, Parasitoid_genus, Parasitoid) %>%
+  summarise() %>%
+  arrange(Exp_ID) %>%
+  ungroup() %>%
+  group_by(Parasitoid) %>%
+  mutate(nb = n(),
+         Parasitoid_main = ifelse(nb >= 3, Parasitoid, "Other"),
+         Parasitoid_name = ifelse(Parasitoid_main == "Other",
+                            Parasitoid_main,
+                            paste0("italic('", Parasitoid_main, "')")),
+         Parasitoid_name = gsub("_", " ", Parasitoid_name)) %>% 
+  ggplot(aes(y = Parasitoid_family, fill = fct_rev(Parasitoid_name))) + 
+  facet_grid(Parasitoid_order ~., space = "free", scales = "free") +
+  geom_bar() +
+  theme(axis.title = element_blank()) + 
+  scale_fill_discrete("Parasitoid species",
+                      labels = italicsGraph) +
+  ggtitle("Species that were mostly studied",
+          subtitle = "Experimental season level")
+
+full.table.ma %>%
+  filter(Parasitoid_N == "Single") %>%
+  group_by(sh_stud, Exp_ID, Exp_rep, Parasitoid_order, Parasitoid_family, Parasitoid_genus, Parasitoid) %>%
+  summarise() %>%
+  group_by(Parasitoid_order, Parasitoid_family, Parasitoid) %>%
+  summarise(nb = n()) %>%
+  arrange(desc(nb))  %>%
+  kable(caption = "Table S14. Number of cases when each parasitoid species was studied at the experimental season level (any variable considered). Cases when responses from multiple parasitoid species were evaluated with a single value are not shown here.")
+
+# Let's have a look at cases when species where studied in pools
+pooled_species_para <- 
+  full.table.ma %>%
+  filter(!is.na(Parasitoid_species_detail)) %>%
+  group_by(sh_stud, Exp_ID, Exp_rep, Parasitoid_species_detail) %>%
+  summarise() %>%
+  filter(grepl("_", Parasitoid_species_detail))
+
+unlist(str_split(pooled_species_para$Parasitoid_species_detail, ",\\s*")) %>%
+  grep("_", ., value = TRUE) %>%
+  gsub("_\\([^)]*\\)", "", .) %>%
+  .[!grepl("spp.", .)] %>%
+  tibble(Species = .) %>%
+  count(Species) %>%
+  arrange(desc(n)) %>%
+  kable(caption = "Table S15. Number of occurrences when a given parasitoid species was studied at the experimental season level (any variable considered), in cases when responses from multiple species were pooled together.")
+```
+
+### 3.2.4 Nectar-producing plants
+
+We can also have a deeper look into the features of nectar plants that were used as food sources in the selected experiments. Figure S17 shows how nectar plants were managed to provide nectar in experiments. Figure S18 shows the main reasons why authors selected particular nectar plant species. Please refer to the [variable description file](https://osf.io/fuda5) on the project repository for a deeper understanding of these figures. Figure S19 shows the level of plant diversity used in experiments. Figures S20 and S21 show the plant species that were used as a way to provide nectar, with details shown in Table S16 and S17, for plants that were used a sole food source. Figure S22 and provide more details about plants that were used in nectar-producing plant mixes: note however that these mixes were not always designed to provide nectar only and thus could also include plant species that do not produce nectar.
+
+```{r Nectar-producing plant level table}
+
+# Again, let's get unique nectar plants for each experiment or season
+nectLevel.tab <- full.table.ma %>%
+  filter(Tmt_sugar == "Nectar") %>%
+  group_by(sh_stud, Exp_ID, Nectar_plant_family, Nectar_producing_plant,
+           Nectar_producing_plant_status, Nectar_providing_plants_diversity,
+           Management_type, Resource_selection_main, Tmt_spatial) %>%
+  summarise() %>%
+  arrange(Exp_ID) %>%
+  group_by(Nectar_producing_plant) %>%
+  mutate(Nectar_main = ifelse(n() >= 3, Nectar_producing_plant, "Other")) %>%
+  mutate(Nectar_main_name = gsub("_", " ", Nectar_main)) %>%
+  mutate(Nectar_main_name = ifelse(!(grepl(" ", Nectar_main_name)),
+                                 Nectar_main_name,
+                                 paste0("italic('", Nectar_main_name, "')"))) %>%
+  group_by(Nectar_plant_family) %>%
+  mutate(Nectar_family_main = ifelse(n() >= 3, Nectar_plant_family, "Other"))
+
+```
+
+```{r Management type, fig.cap = "Figure S17. Management types used to provide nectar in the experiments included in the meta-analysis. Please refer to the variable description file on the project repository for a detailed explanation of management type terminology."}
+
+ggplot(nectLevel.tab,
+       aes(y = Management_type,
+           fill = Nectar_producing_plant_status)) +
+  facet_grid(Tmt_spatial~., scales = 'free' ,space = 'free') +
+  geom_bar() +
+  labs(x = NULL, y = NULL, fill = "Nectar-producing plant status") +
+  theme(legend.position = "bottom")
+```
+
+```{r Nectar plant choosing, fig.cap = "Figure S18. Reasons why specific plants were chosen as a way to provide nectar, in the experiments included in the meta-analysis. Please refer to the variable description file on the project repository for a detailed explanation of the chosen terminology."}
+
+ggplot(nectLevel.tab,
+       aes(y = Resource_selection_main,
+           fill = Nectar_producing_plant_status)) +
+  facet_grid(Tmt_spatial~., scales = 'free' ,space = 'free') +
+  geom_bar() +
+  labs(x = NULL, y = NULL, fill = "Nectar-producing plant status") +
+  theme(legend.position = "bottom")
+
+```
+
+
+```{r Nectar plant richness, fig.cap = "Figure S19. Number of plants included in nectar-producing treatments, in the experiments included in the meta-analysis. Note that these may not include nectar-producing plants only."}
+
+ggplot(nectLevel.tab,
+       aes(y = as.numeric(Nectar_providing_plants_diversity),
+           fill = Nectar_producing_plant_status)) +
+  facet_grid(Tmt_spatial~.) +
+  geom_bar() +
+  labs(x = NULL, y = "Nectar plant species richness", fill = "Nectar-producing plant status") +
+  theme(legend.position = "bottom")
+
+```
+
+```{r Nectar plants exp, fig.cap = "Figure S20. Plant taxa that were mainly used as a way of providing nectar in treatments, at the experiment level. The length of individual bars correspond to the number of experiments when a given plant species was used. Cases where nectar-producing plants were included in mixes are classified as 'Various'. Species that were studied in fewer than 3 experiments were classified as 'Other'."}
+
+ggplot(nectLevel.tab, aes(x = Nectar_family_main, fill = fct_rev(Nectar_main_name))) +
+  geom_bar() + 
+  labs(x = NULL, y = NULL) +
+  scale_fill_discrete(labels = italicsGraph,
+                      name = "Nectar species") +
+  ggtitle("Most studied nectar-producing plants",
+          subtitle = "Experiment level") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+nectLevel.tab %>%
+  group_by(Nectar_plant_family, Nectar_producing_plant) %>%
+  summarise(nb = n()) %>%
+  arrange(desc(nb)) %>%
+  kable(caption = "Table S16. Plant taxa that were mainly used as a way of providing nectar in treatments, at the experiment level.  Cases where nectar-producing plants were included in mixes are classified as 'Various'.")
+```
+
+
+```{r Nectar plants exp-season, fig.cap = "Figure S21. Plant taxa that were mainly used as a way of providing nectar in treatments, at the experiment-season level. The length of individual bars correspond to the number of experimental seasons when a given plant species was used. Cases where nectar-producing plants were included in mixes are classified as 'Various'. Species that were studied in fewer than 3 experimental seasons were classified as 'Other'."}
+
+full.table.ma %>%
+  filter(Tmt_sugar == "Nectar") %>%
+  group_by(sh_stud, Exp_ID, Exp_rep, Nectar_plant_family, Nectar_producing_plant,
+           Nectar_producing_plant_status, Nectar_providing_plants_diversity,
+           Management_type, Resource_selection_main, Tmt_spatial) %>%
+  summarise() %>%
+  arrange(Exp_ID) %>%
+  group_by(Nectar_producing_plant) %>%
+  mutate(Nectar_main = ifelse(n() >= 3, Nectar_producing_plant, "Other")) %>%
+  mutate(Nectar_main_name = gsub("_", " ", Nectar_main)) %>%
+  mutate(Nectar_main_name = ifelse(!(grepl(" ", Nectar_main_name)),
+                                   Nectar_main_name,
+                                   paste0("italic('", Nectar_main_name, "')"))) %>%
+  group_by(Nectar_plant_family) %>%
+  mutate(Nectar_family_main = ifelse(n() >= 3, Nectar_plant_family, "Other")) %>%
+  ggplot(aes(x = Nectar_family_main, fill = fct_rev(Nectar_main_name))) +
+  geom_bar() + 
+  labs(x = NULL, y = NULL) +
+  scale_fill_discrete(labels = italicsGraph,
+                      name = "Nectar species") +
+  ggtitle("Most studied nectar-producing plants",
+          subtitle = "Experimental season level") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+full.table.ma %>%
+  filter(Tmt_sugar == "Nectar") %>%
+  group_by(sh_stud, Exp_ID, Exp_rep, Nectar_plant_family, Nectar_producing_plant,
+           Nectar_producing_plant_status, Nectar_providing_plants_diversity,
+           Management_type, Resource_selection_main, Tmt_spatial) %>%
+  summarise() %>%
+  group_by(Nectar_plant_family, Nectar_producing_plant) %>%
+  summarise(nb = n()) %>%
+  arrange(desc(nb)) %>%
+  kable(caption = "Table S17. Plant taxa that were mainly used as a way of providing nectar in treatments, at the experimental season level.  Cases where nectar-producing plants were included in mixes are classified as 'Various'.")
+```
+
+```{r Nectar plant mixes, fig.cap = "Figure S22. Species mostly included in plant mixes designed at least partly to provide nectar (note that these may include non nectar-producing plants), at the experimental season level. Only cases where plants are included in at least seven experiment-seasons are shown here ; for a complete table please refer to the main script."}
+
+# For now we only displayed plants that were studied as a sole nectar source
+# And grouped plants that were studied in mixes in the "Various" category
+# Let's look more closely at what plants were in those mixes
+# Note that this may include nectar that do not produce nectar (e.g. herbs)
+
+pooled.species.nectar <- 
+full.table.ma %>%
+  filter(!is.na(Nectar_plants_detail)) %>%
+  group_by(sh_stud, Exp_ID, Exp_rep, Nectar_plants_detail) %>%
+  summarise()  %>%
+  filter(grepl("_", Nectar_plants_detail))
+
+  # They will all be stored in this table
+all.nectar.plants <- 
+unlist(str_split(pooled.species.nectar$Nectar_plants_detail, ",\\s*")) %>%
+  grep("_", ., value = TRUE) %>%
+  gsub("_\\([^)]*\\)", "", .) %>%
+  .[!grepl("spp.", .)] %>%
+  tibble(Species = .) %>%
+  count(Species) %>%
+  arrange(desc(n)) %>%
+  mutate(Species_italics = gsub("_", " ", Species)) %>%
+  mutate(Species_italics = ifelse(!(grepl(" ", Species_italics)),
+                                   Species_italics,
+                                   paste0("italic('", Species_italics, "')")))
+
+  # Graphical depiction
+    # (Only plants included in at least 7 experiment-seasons)
+all.nectar.plants %>%
+  filter(n > 7) %>%
+  ggplot(aes(x = reorder(Species_italics, n, decreasing = T),
+             y = n)) +
+  geom_bar(stat = "identity") + 
+  labs(title = "Plants most included in nectar-producing mixes",
+       subtitle = "Experimental season level",
+       x = NULL,
+       y = NULL) +
+  scale_x_discrete(labels = italicsGraph) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+### 3.2.5 Artificial sugar sources
+
+Finally, let's investigate the artificial sugar sources mainly used in the selected experiments (Fig. S23 for the experimental leval, Fig. S24 for the experimental season level). Here again, note that was is represented is not the number of experiments, as several treatments can be tested in the same experiment. Rather, it is the number of times that a treatment is tested as the experiment scale or experimental season scale.
+
+```{r ASS exp, fig.cap = "Figure S23. Artificial sugar source types used in treatments. The length of individual bars correspond to the number of experiments when a given sugar source type was used. Note that these were all applied using sugar sprays."}
+
+sugLevel.tab_exp <- full.table.ma %>%
+  filter(Tmt_sugar == "AS") %>%
+  group_by(sh_stud, Exp_ID, Artificial_sugar, Management_type) %>%
+  summarise() %>%
+  arrange(Exp_ID)
+
+sugLevel.tab_exp %>%
+  ggplot(aes(x = Artificial_sugar)) +
+  geom_bar() + 
+  labs(x = NULL, y = NULL,
+       title = "Artificial sugar sources used in treatments",
+       subtitle = "Experiment level") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+```{r ASS exp-season, fig.cap = "Figure S24. Artificial sugar source types used in treatments. The length of individual bars correspond to the number of experimental seasons when a given sugar source type was used. Note that these were all applied using sugar sprays."}
+
+sugLevel.tab_seas <- full.table.ma %>%
+  filter(Tmt_sugar == "AS") %>%
+  group_by(sh_stud, Exp_ID, Exp_rep, Artificial_sugar, Management_type) %>%
+  summarise() %>%
+  arrange(Exp_ID)
+
+sugLevel.tab_seas %>%
+  ggplot(aes(x = Artificial_sugar)) +
+  geom_bar() + 
+  labs(x = NULL, y = NULL,
+       title = "Artificial sugar sources used in treatments",
+       subtitle = "Experimental season level") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+# 4. Preparing the data for the meta-analysis
+
+A few steps must be completed before computing effect sizes and performing the meta-analysis: pooling distance measures, addressing shared control cases and making some minor final adjustments to the dataset.
+
+## 4.1 Pooling distance measures
+
+In several papers, data are reported at different distances from the sugar source.  To ensure comparability across studies, we chose to aggregate these data so they become more reflective of the whole field scale. To assess whether this decision affects the overall results, we will conduct a sensitivity analysis at later stages of the meta-analysis. For each study where data were collected at multiple distances, we computed a grand mean, a pooled standard deviation, and a pooled sample size across distances. The pooled sample size was considered equal to the average number of replicates over each distance.
+
+```{r Pooled distances}
+
+    
+pooled.dist <- full.table.ma %>%
+  filter(Distance_dependence == 1) %>%
+  group_by(sh_stud, Exp_ID, Exp_rep, Sub_exp, Sub_group_ctrl) %>%
+  mutate(
+      # Grand Mean
+    tmt_Mean = mean(tmt_Mean), 
+      # Pooled sample Size
+    tmt_N = mean(tmt_N), 
+      # For standard deviation we use a custom function (pooledSd())
+    tmt_SD = pooledSd(tmt_N, tmt_SD), 
+    ctrl_Mean = mean(ctrl_Mean), 
+    ctrl_N = mean(ctrl_N), 
+    ctrl_SD = mean(ctrl_SD), 
+    Distance_from_border = "Pooled", 
+    Distance_from_border_2 = paste(Distance_from_border_2, sep = "+", collapse = "/"),
+    Distance_dependence = NA, 
+    Distance_info = paste(Distance_info, sep = "+", collapse = ""),
+    tmt_SE = tmt_SD/sqrt(tmt_N),
+    ctrl_SE = ctrl_SD/sqrt(ctrl_N),
+    Control = "Pooled distances, see original table",
+    Treatment = "Pooled distances, see original table",
+    Var_ID =  sub("_[^_]+$", "_pooled", Var_ID)
+  ) %>%
+  distinct()
+
+  # Now we add this to the full dataset
+    # We create a new ready.tab object
+ready.tab <- full.table.ma %>%
+  filter(is.na(Distance_dependence)) %>%
+  bind_rows(pooled.dist)
+```
+
+## 4.2 Shared controls
+
+There are several studies in which several treatments are compared to the same control group. The sampling error of these effect sizes will thus be correlated (Nakagawa et al. 2023a):  we have to consider this source of dependence. To do so, we divide the sample size of the control group by the number of shared controls, as in Bishop & Nakagawa 2021 (see also Higgins et al. 2019). Note that one alternative could be to model the variance-covariance matrix explicitly (Nakagawa et al. 2023a, Yang et al. 2023).
+
+```{r Shared controls}
+ready.tab <- ready.tab %>%
+  mutate(ctrl_N.corr = ifelse(is.na(Same_control_dependence), 
+                              ctrl_N, 
+                              ctrl_N/Nb_shared_controls),
+          # Some sample sizes are now < 1 -> rounding them to 1
+         ctrl_N.corr = ifelse(ctrl_N.corr < 1, 1, ctrl_N.corr)
+  )
+
+```
+
+## 4.3 Final adjustments
+
+We remove cases where honeydew was the sugar source from the final dataset, as we do not have enough cases to include them in the meta-analysis. Finally, we add a few columns to our dataset that will be useful for our meta-analysis.
+
+```{r}
+ready.tab <- ready.tab %>%
+    ## We won't analyse honeydew in the meta-analysis
+      ## (Not enough samples)
+  filter(Tmt_sugar_name != 'Honeydew') %>%
+  mutate(
+    ## Creating moderator: merging spatial treatment and sugar treatment
+    Mod = paste(Tmt_sugar, Tmt_spatial, sep = " - "),
+    ## This will be useful for sensitivity analyses (just the name)
+    ExpName = paste(sh_stud, Exp_Nb))
+
+  # We also create a "calibrated" Publication year variable
+  # This will be useful for the analysis of putative time-lag effects
+ready.tab$year.c <- as.numeric(scale(ready.tab$Publication_year, scale = F))
+```
+
+# 5. Effect sizes
+
+## 5.1 Number of effect sizes
+
+Our data is now ready to compute effect sizes. Before doing so, let's look at how many effect sizes we will obtain for each variable. Figure S25 and Table S18 show the total number of effect sizes for each variable. Figure S26 shows how many effect sizes will be available for each moderator level combination (sugar source type * spatial disposition). We can also see how many of these effect sizes can be computed from data extracted in papers or sent by authors in Table S19.
+
+```{r Number of effect sizes, fig.cap="Figure S25. Number of effect sizes that can be computed for each extracted variable."}
+
+#  Barplot
+es_barplot <- 
+ggplot(ready.tab,aes(y = Variable, fill = Variable)) +
+  geom_bar()+
+  theme(legend.position = "none") + 
+  labs(x = NULL, y = NULL,
+       title = "Number of effect sizes for each variable")
+
+es_barplot
+
+# Table, by decreasing order
+sort(table(ready.tab$Variable), decreasing = T) %>%
+  kable(caption = "Table S18. Number of effect sizes that can be computed for each extracted variable, by decreasing order.")
+
+```
+
+```{r Effect sizes per moderator, fig.cap="Figure S26. Number of effect sizes that can be computed for each extracted variable, for each each moderator level combination (sugar source type * spatial disposition)."}
+
+es_barplot +
+  facet_wrap(Tmt_sugar_name ~ Tmt_spatial)
+```
+
+```{r Effect size origin}
+
+ready.tab %>%
+  mutate(`Data origin` = ifelse(Data_Origin == "Sent_data", 
+                              "Sent by authors", 
+                              "Retrieved from paper")) %>%
+  group_by(`Data origin`) %>%
+  summarise(`Number of effect sizes` = n()) %>%
+  kable(caption = "Table S19. Number of effect sizes according to data origin.")
+
+```
+
+## 5.2 Effect size calculation
+
+We can now compute effect sizes for each treatment-control comparison. As detailed in the main manuscript, we primarily used the *log Response Ratio* or **lnRR**  as it provides an intuitive, multiplicative measure of mean differences (Hedges et al. 1999). However, because the distribution of lnRR may not always meet the assumptions of meta-analytical models, we also calculated the standardized mean difference, or **Hedges' D**, a classical alternative (Hedges & Olkin 1985). We let the reader refer to the vast literature on effect sizes and meta-analyses for more details about the computation and interpretation of these effect sizes (Nakagawa et al. 2007, Koricheva et al. 2013, Nakagawa et al. 2023a). For a measure of effect sizes on variability, we compute the *log Coefficient of Variation Ratio* or **lnCVR**, the gold standard for such an endeavour (Nakagawa et al. 2015, Senior et al. 2020). 
+
+```{r Effect size calculation}
+
+tab.es <- 
+  ready.tab %>%
+    ## Hedge's D (sensu Nakagawa et al. 2007)
+  metafor::escalc(measure = "SMD",
+         m1i = tmt_Mean,
+         m2i = ctrl_Mean,
+         sd1i = tmt_SD,
+         sd2i = ctrl_SD,
+         n1i = tmt_N,
+         n2i = ctrl_N.corr,
+         data = ready.tab
+         ) %>% 
+  metafor::summary.escalc() %>%
+  rename_with(~ paste0("HedgeD_", .), .cols = (ncol(.) - 6):ncol(.)) %>%
+    ##lnRR
+  metafor::escalc(measure = "ROM",
+         m1i = tmt_Mean,
+         m2i = ctrl_Mean,
+         sd1i = tmt_SD,
+         sd2i = ctrl_SD,
+         n1i = tmt_N,
+         n2i = ctrl_N.corr,
+         data = .
+  ) %>% 
+  metafor::summary.escalc() %>%
+  rename_with(~ paste0("lnRR_", .), .cols = (ncol(.) - 6):ncol(.)) %>%
+    ##lnCVR
+  metafor::escalc(measure = "CVR",
+                  m1i = tmt_Mean,
+                  m2i = ctrl_Mean,
+                  sd1i = tmt_SD,
+                  sd2i = ctrl_SD,
+                  n1i = tmt_N,
+                  n2i = ctrl_N.corr,
+                  data = .
+  ) %>% 
+  metafor::summary.escalc() %>%
+  rename_with(~ paste0("lnCVR_", .), .cols = (ncol(.) - 6):ncol(.)) %>%
+    # Giving an ID to each ES
+  mutate(ES_ID = row_number()) %>%
+  # Final thing to do: computing the "effective sample size" as in
+    # Nakagawa et al. (2022, 2023)
+  mutate(ess_var = (1/ctrl_N.corr) + (1/tmt_N),
+         ess_se = sqrt(ess_var))
+
+```
+
+Note that the computation of each effect size metrics generate missing values, depending on data availability and calculation requirements (respectively 10 for Hedge's D, 23 for lnRR and 204 for lnCVR, see main script and below for details). We can look at the distribution of these missing values depending on the values of the original data in Fig.S27 to S29.
+
+```{r Missing Hedges G, fig.cap = "Figure S27. Cases for which Hedge's G could not be computed, along with according and control treatment values."}
+tab.es %>%
+  filter(if_any(starts_with("HedgeD"), is.na)) %>% 
+  pivot_longer(
+    cols = c(ctrl_Mean, ctrl_SE, tmt_Mean, tmt_SE),
+    names_to = c("Cond", ".value"),
+    names_pattern = "(.*)_(.*)"
+) %>%
+  ggplot(aes(x = Mean, col = Cond, y = Var_ID)) +
+  geom_pointrange(aes(xmin = Mean + SE, xmax = Mean - SE)) +
+  ylab(NULL) +
+  xlab("Mean value (+/- SE)") +
+  ggtitle("Cases for which Hedge's G could not be computed") +
+  scale_color_discrete("Condition", labels = c("Control", "Treatment"))
+
+```
+
+```{r Missing lnRR, fig.cap = "Figure S28. Cases for which lnRR could not be computed, along with according and control treatment values."}
+tab.es %>%
+  filter(if_any(starts_with("lnRR"), is.na)) %>% 
+  pivot_longer(
+    cols = c(ctrl_Mean, ctrl_SE, tmt_Mean, tmt_SE),
+    names_to = c("Cond", ".value"),
+    names_pattern = "(.*)_(.*)"
+) %>%
+  ggplot(aes(x = Mean, col = Cond, y = Var_ID)) +
+  geom_pointrange(aes(xmin = Mean + SE, xmax = Mean - SE)) +
+  ylab(NULL) +
+  xlab("Mean value (+/- SE)") +
+  ggtitle("Cases for which lnRR could not be computed") +
+  scale_color_discrete("Condition", labels = c("Control", "Treatment"))
+
+```
+
+```{r Missing lnCVR, fig.cap = "Figure S29. Cases for which lnCVR could not be computed, along with according and control treatment values."}
+tab.es %>%
+  filter(if_any(starts_with("lnCVR"), is.na)) %>% 
+  pivot_longer(
+    cols = c(ctrl_Mean, ctrl_SE, tmt_Mean, tmt_SE),
+    names_to = c("Cond", ".value"),
+    names_pattern = "(.*)_(.*)"
+  ) %>%
+  ggplot(aes(x = Mean, col = Cond, y = Var_ID)) +
+  geom_pointrange(aes(xmin = Mean + SE, xmax = Mean - SE)) +
+  ylab(NULL) +
+  xlab("Mean value (+/- SE)") +
+  ggtitle("Cases for which lnCVR could not be computed") +
+  scale_color_discrete("Condition", labels = c("Control", "Treatment")) +
+  theme(axis.text.y = element_text(size = 5))
+```
+
+## 5.3 Effect size distribution
+
+Now we can have a first look at the distribution of effect sizes for each variable in Fig. S30 to S41. Note that meta-analyses usually assume normality of residuals (Koricheva et al. 2014, Nakagawa et al. 2023b), but deviation from normality in raw effect sizes may be due to moderators. We will have to be careful the distribution of residuals in each meta-analytical model we will fit. To evaluate the distribution of effect sizes we use the custom function `plotES()`.
+
+```{r Prate HedgeD distribution, fig.cap = "Figure S30. Distribution of Hedge's D values for parasitism rate."}
+plotES(tab.es, "Parasitism_rate", "HedgeD")
+```
+
+```{r Prate lnRR distribution, fig.cap = "Figure S31. Distribution of log Response Ratio values for parasitism rate."}
+plotES(tab.es, "Parasitism_rate", "lnRR")
+```
+
+```{r ParAb HedgeD distribution, fig.cap = "Figure S32. Distribution of Hedge's D values for parasitoid abundance."}
+plotES(tab.es, "Parasitoid_abundance", "HedgeD")
+```
+
+```{r ParAb lnRR distribution, fig.cap = "Figure S33. Distribution of log Response Ratio values for parasitoid abundance."}
+plotES(tab.es, "Parasitoid_abundance", "lnRR")
+```
+
+```{r PestD HedgeD distribution, fig.cap = "Figure S34. Distribution of Hedge's D values for pest density."}
+plotES(tab.es, "Pest_density", "HedgeD")
+```
+
+```{r PestD lnRR distribution, fig.cap = "Figure S35. Distribution of log Response Ratio values for pest density."}
+plotES(tab.es, "Pest_density", "lnRR")
+```
+
+```{r Yield HedgeD distribution, fig.cap = "Figure S36. Distribution of Hedge's D values for yield."}
+plotES(tab.es, "Yield", "HedgeD")
+```
+
+```{r Yield lnRR distribution, fig.cap = "Figure S37. Distribution of log Response Ratio values for yield."}
+plotES(tab.es, "Yield", "lnRR")
+```
+
+
+```{r Prate lnCVR distribution, fig.cap = "Figure S38. Distribution of the log Coefficient of Variation Ratio values for parasitism rate."}
+plotES(tab.es, "Parasitism_rate", "lnCVR")
+```
+
+
+```{r ParAb lnCVR distribution, fig.cap = "Figure S39. Distribution of the log Coefficient of Variation Ratio values for parasitoid abundance."}
+plotES(tab.es, "Parasitoid_abundance", "lnCVR")
+```
+
+
+```{r PestD lnCVR distribution, fig.cap = "Figure S40. Distribution of the log Coefficient of Variation Ratio values for pest density."}
+plotES(tab.es, "Pest_density", "lnCVR")
+```
+
+
+```{r Yield lnCVR distribution, fig.cap = "Figure S41. Distribution of the log Coefficient of Variation Ratio values for yield."}
+plotES(tab.es, "Yield", "lnCVR")
+```
+
+Note that mean *lnRR* distribution does not deviate that much from normality (but see the significant number of outliers) but that confidence intervals may be very large. This may be related to small sample sizes (Nakagawa et al. 2023b). For a more robust test on the normality of effect sizes, we transform effect sizes based on Lajeunesse's equation (Lajeunesse 2015) based on Geary (1930). In order for our data to meet meta-analytic assumptions, most of these "normalized" values should be superior or equal to 3 (Lajeunesse 2015, Nakagawa et al. 2023b). However, we can see in Fig. S42 that is is true for only 22% of our data. This is not that surprising as ecological count data are often overdispersed (Nakagawa et al. 2023b). We will be cautious checking normality assumption in further models' residual diagnostics.
+
+
+```{r Lajeunesse test, fig.cap = "Figure S42. Distribution of lnRR values transformed through Lajeunesse's equation (Lajeunesse 2015, based on Geary 1930 and corrected for small sample sizes). The red bar corresponds to the value of 3: ideally, normalized lnRR should be located on the right side of the bar in order to meet meta-analytic assumptions."}
+tab.es <- 
+tab.es %>%
+  mutate(
+    CV_lnRR = sqrt(lnRR_vi)/lnRR_yi,
+    n_ES = mean(c(tmt_N, ctrl_N)),
+    norm_lnRR = (1/CV_lnRR) * (4*(n_ES^(3/2))) / (1 + 4 * n_ES),
+    lnRR_outl = ifelse(norm_lnRR >= 3, "Ok", "Outlier")
+    )
+
+# About 75% of the data are outliers! We'll do a sensitivity test later
+sum(tab.es$norm_lnRR < 3, na.rm = T) / nrow(tab.es)
+
+qplot(tab.es$norm_lnRR) +
+  geom_vline(xintercept = 3, col = "red") +
+  xlab("Normalized lnRR") +
+  ggtitle("Distribution of normalized lnRR",
+          subtitle = "Lajeunesse's test")
+
+```
+
+# 6. Meta-analyses
+
+## 6.1 Dependence structure in effect sizes
+
+Now that effect sizes have been computed, we can proceed with the meta-analyses. We aim to account for dependencies among effect sizes arising from shared studies, experiments, and other sources. Beyond these, many effect sizes also stem from shared measurements — for example (non-exhaustively): shared controls (already handled by dividing sample sizes, see section [4.2 Shared controls]), variables measured on the same biological samples (*e.g.* same plants or hosts), different methods used to measure the same variable, or the same variable measured across multiple species. All of these may combine multiple, intertwined sources of dependence in the effect sizes' sampling variance (Nakagawa et al. 2023a). However, attempting to model all such sources explicitly would likely lead to overfitting and impractical model complexity.
+
+To strike a balance between capturing key dependencies and maintaining model parsimony, we apply the following rules. Data points are considered as "independent" if:
+
+- They originate from distinct treatment–control pairs (i.e. different “sub-experiments” as defined in our  [set of definitions](https://osf.io/fuda5)) OR
+They involve different biological samples and different species (for example, pest counts on distinct plant parts are considered independent; likewise, parasitism rates on different host–parasitoid species pairs, even if measured on the same samples).
+
+When these conditions are not met, we explicitly model data dependence by specifying a variance–covariance matrix for each response variable (Nakagawa et al. 2023a). We assume an initial correlation coefficient ($\rho$) of 0.5, and will explore alternative values through sensitivity analyses (Noble et al. 2017; Nakagawa et al. 2023a).
+
+```{r Dependence structure}
+
+# So for each Variable, we give a cluster ID to each ES
+# To reflect this structure of dependence in the sampling variance
+tab.es <- 
+  tab.es %>%
+  mutate(unit = factor(paste(Exp_ID, Exp_rep, sep = "_"))) %>%
+  group_by(unit, Sub_exp) %>%
+  # Same ID if
+    # Same sub-exp
+    # AND same sample or same species
+  mutate(
+    clusterID = cur_group_id() + group_indices(across(c(Variable_dep_sample, Variable_dep_taxon)))
+  )
+
+```
+
+Finally, we remove data points corresponding to one particular situation from the dataset: these are cases when measurements were made on one species that was also included in a pool. Although this could be modelled explicitly, dependence is probably very large here and this concerns only a few cases (4).
+
+```{r Removing species in pools}
+# Here they are:
+tab.es %>%
+  filter(Parasitoid_pool == 1) %>%
+  group_by(sh_stud, Var_ID, ES_ID) %>%
+  summarise()
+
+  # Quick and dirty way, let's improve this later by adding a column in the table
+meta.tab <- tab.es %>%
+  filter(!ES_ID %in% c(272, 415, 503, 504))
+```
+
+## 6.2 Pest density
+
+Let's start with the analysis of host (or "pest") density. First, we extract the subset corresponding to pest density values only.
+
+```{r Pest density data}
+
+meta.PD.dat <- meta.tab %>%
+  filter(Variable == "Pest_density")
+
+```
+
+### 6.2.1 Meta-analysis of mean
+
+#### Variance-covariance matrix.
+
+We first focus on the meta-analysis of pest density mean. In other words, is mean pest density different when sugar is available? First, we construct the variance-covariance matrix for dependence, assuming that $\rho$ = 0.5 as explained above.
+
+```{r PestD Mean VCOV}
+vcov.PD.lnRR.05 <- 
+  metafor::vcalc(vi = lnRR_vi, 
+                 cluster = clusterID, 
+                 obs = ES_ID, 
+                 data = meta.PD.dat, 
+                 rho = 0.5)
+```
+
+#### Random structure.
+
+Now, we test for the random structure of the model. They are fitted via maximum likelihood to allow model comparison (see *e.g.* Bishop & Nakagawa 2021). We test for the (nested) random effects of study, experiment and experimental season on the values of effect sizes. The fourth model `meta.PD.Mean.4` has the lowest AIC, so we keep this one as our intercept-only model.
+
+```{r PestD Mean random structure}
+    # Only Shared Study
+meta.PD.Mean.1 <- rma.mv(lnRR_yi, vcov.PD.lnRR.05,
+                   random = ~1|sh_stud, 
+                   data = meta.PD.dat,
+                   method = 'ML')
+AIC(meta.PD.Mean.1) 
+
+    # Shared Study AND Experiment (nested)
+meta.PD.Mean.2 <- update(meta.PD.Mean.1,
+                   random = ~1|sh_stud/Exp_Nb)
+AIC(meta.PD.Mean.2)
+
+
+    # Shared Experiment only
+meta.PD.Mean.3 <- update(meta.PD.Mean.1,
+                   random = ~1|Exp_ID)
+AIC(meta.PD.Mean.3) 
+
+    # Shared Experiment and Year
+meta.PD.Mean.4 <- update(meta.PD.Mean.1,
+                   random = ~1|Exp_ID/Exp_rep)
+AIC(meta.PD.Mean.4) 
+anova.rma(meta.PD.Mean.3, meta.PD.Mean.4)
+  # significant difference with model with second lowest AIC
+
+    # Shared Experiment and Sub_experiment
+meta.PD.Mean.5 <- update(meta.PD.Mean.1,
+                   random = ~1|Exp_ID/Sub_exp, 
+                   data = ungroup(meta.PD.dat) %>% 
+                     mutate(Sub_exp = ifelse(is.na(Sub_exp), 1, Sub_exp)))
+AIC(meta.PD.Mean.5) 
+
+anova.rma(meta.PD.Mean.3, meta.PD.Mean.5)
+    # --> meta.PD.Mean.4 has the lowest AIC
+    # (i.e. the one with Exp. season nested within Exp. ID without Study ID)
+```
+
+#### Intercept-only model.
+
+Now, we can re-fit this intercept-only model using residual maximum likelihood to get unbiased values for the variance parameters. Note that we can use `metafor::profile.rma.mv` to check that random effects were well estimated (results not show here but see main script to re-run the profiling analysis). We can also print results below.
+
+```{r PestD Mean intercept, fig.cap = "Figure S43. Meta-analysis of pest density mean (lnRR): intercept-only model. k represents the number of effect sizes and the value in parenthesis is the number of corresponding experiments."}
+meta.PD.Mean.int <- update(meta.PD.Mean.4, method = 'REML')
+summary(meta.PD.Mean.int)
+
+mResults_PD.Mean.int <- mod_results(meta.PD.Mean.int, mod = "1", group = "Exp_ID")
+print(mResults_PD.Mean.int)
+
+orchard_plot(mResults_PD.Mean.int, xlab = "lnRR") +
+  ggtitle("Meta-analysis of pest density mean",
+          subtitle = "Intercept-only model")  +
+  scale_colour_manual(values = "#CC6677") +
+  scale_fill_manual(values = "#CC6677")
+
+    # Let's just check that Random Effects were well estimated
+      # Takes a few second (about 20s on my PC)
+      # Ok, mainly for Experiment effect
+if(profile_random) profile.rma.mv(meta.PD.Mean.int)
+```
+
+#### Model with moderators.
+
+Now that we have an intercept-only model, we can test for the effect of our two moderators, sugar source type and spatial disposition. Results from this model can be seen below.
+
+```{r PestD Mean mods, fig.cap = "Figure S44. Meta-analysis of pest density mean (lnRR): model including moderators. k represents the number of effect sizes and the value in parenthesis is the number of corresponding experiments. AS stands for 'Artificial Sugars'."}
+
+meta.PD.Mean.mods <- update(meta.PD.Mean.int, mods = ~ Mod - 1)
+summary(meta.PD.Mean.mods)
+
+mResults_PD.Mean.mods <- mod_results(meta.PD.Mean.mods, mod = "Mod", group = "Exp_ID")
+print(mResults_PD.Mean.mods)
+
+orchard_plot(mResults_PD.Mean.mods, xlab = "lnRR") +
+  ggtitle("Meta-analysis of pest density mean",
+          subtitle = "Model with moderators")
+
+if(profile_random) profile.rma.mv(meta.PD.Mean.mods)
+```
+
+We can test for the significativity of moderators using `metafor::anova.rma` function:
+
+```{r PestD Mean signif}
+anova.rma(meta.PD.Mean.int)
+anova.rma(meta.PD.Mean.mods)
+```
+
+#### Model comparison.
+
+For a more complete comparison of the intercept-only model *vs* the model with moderators, we use the `modelCompTab()` custom function. This function allows obtaining and comparing different performance metrics for each model. We also apply a likelihood ratio test between both models, which gives us a p-value (it should be < 0.05 if the model with moderators brings significant improvement compared to the intercept-only model). Note that models are re-fitted with maximum likelihood.
+
+```{r PestD Mean comp}
+modelCompTab("PD", "Mean")
+```
+
+We also use the custom function `modelPerfTab()` to evaluate both models' performance and heterogeneity.
+
+```{r PestD Mean variance}
+modelperfTab("PD", "Mean")
+```
+
+#### Residual distribution.
+
+As the model with moderators does not seem to improve any significant improvement, we will focus on the intercept-only model. We can use custom functions to evaluate the residual distribution from this model and checks that it meets its assumptions (normality, homogeneity).
+
+```{r PestD Mean diag 1, fig.cap = "Figure S45. Quantile-quantile plot of the retained model (intercept-only) for the meta-analysis of pest density mean (lnRR)."}
+rmaQQplot("PD", "Mean", "Pest density", "lnRR")
+```
+
+```{r PestD Mean diag 2, fig.cap = "Figure S46. Residual distribution of the retained model (intercept-only) for the meta-analysis of pest density mean (lnRR)."}
+rmaResidHist("PD", "Mean", "Pest density", "lnRR")
+```
+    
+#### Publication bias.
+
+To analyse publication bias, we can start by plotting a "classical" funnel plot based on precision. If there is no publication bias, distribution should by symmetrical (95% of the data should be in the confidence interval).
+
+```{r PestD Mean funnel precision, fig.cap = "Figure S47. Funnel plot showing the precision (inverse standard error) of pest density mean effect sizes (lnRR) according to their mean  value."}
+
+funnel(meta.PD.Mean.int, yaxis = "seinv")
+  # Just zooming a little bit
+funnel(meta.PD.Mean.int, yaxis = "seinv", ylim = c(0.1, 10), xlim = c(-5, 5))
+
+```
+
+There seems to be some publication bias indeed, likely due to a small-study effect. However, effective sample size has been shown more trustworhty to detect such effects (Nakagawa et al. 2022, 2023a).
+
+```{r PestD Mean funnel ESS, fig.cap = "Figure S48. Funnel plot showing the effective sample size of pest density mean effect sizes (lnRR) according to their mean  value."}
+essFunnel("PD", "Mean", "lnRR")
+```
+
+Here again, the distribution appears to be asymmetrical. However, to test properly for publication bias, we'll use a multilevel model as advocated by Nakagawa et al. (2022, 2023a). To do so, we re-fit the selected model with two additional moderators: **effective sample size** and **year of publication**. Their associated parameters will allow us assessing the likely presence of two types of publication biases that are frequent in ecology, small-study effects and time-lag effects (see Nakagawa et al. 2022 for a detailed explanation).
+
+```{r PestD Mean Publication Bias, fig.cap = "Figure S49. Analysis for publication biases in mean pest density differences, following Nakagawa et al. 2022."}
+      # Proper test
+meta.PD.Mean.int.pb <- update(meta.PD.Mean.int, mods = ~ ess_se + year.c)
+        # Quick analysis
+summary(meta.PD.Mean.int.pb)
+anova(meta.PD.Mean.int.pb)
+        # Graphical analysis
+bubble_plot(meta.PD.Mean.int.pb, mod = "ess_se", group = "Exp_ID",
+            xlab = "Effective sample size", ylab = "lnRR") +
+  ggtitle("Analysis of publication bias for the effect on pest density mean",
+          subtitle = "Decline effect")
+
+bubble_plot(meta.PD.Mean.int.pb, mod = "year.c", group = "Exp_ID",
+            xlab = "Publication year", ylab = "lnRR") +
+  scale_x_continuous(
+    labels = unique(round(meta.PD.dat$Publication_year / 5) * 5),
+    breaks = unique(round(meta.PD.dat$year.c / 5) * 5)
+  ) +
+  ggtitle("Analysis of publication bias for the effect on pest density mean",
+          subtitle = "Decline effect")
+```
+
+As there is some evidence for publication bias (notably a time-lag effect), we can now re-adjust the overall effect size estimation. We still see no effect of sugars on pest density (Fig. S50).
+
+```{r PestD Mean Publication Bias Adjusting, fig.cap = "Figure S50. Meta-analysis of pest density mean (lnRR): intercept-only model, unadjusted and adjusted for publication bias. k represents the number of effect sizes and the value in parenthesis is the number of corresponding experiments."}
+    # To adjust effect sizes for publication bias we use modResultsAdjPb()
+    # custom function
+mResults_PD.Mean.Adj <- modResultsAdjPb("PD", "Mean")
+mResults_PD.Mean.Adj
+
+    # Then we can plot unadjusted and adjusted estimates using plotAdjEst()
+plotAdjEst("PD", "Mean", "lnRR", "Pest density")
+```
+
+#### Sensitivity analyses.
+
+The robustness of the analysis can be influenced by the presence of particularly influential studies or experiments (Nakagawa et al. 2023a). Thus, we will perform several sensitivity analyses, using custom functions (`saForest`, calling `LOOTable` and `LOOForest`). We will re-run the model multiple times, each time excluding one study, experiment or effect size (*i.e.* leave-one-out analysis). We will work with the intercept-only model as it was selected over the model with moderators.
+
+```{r PestD Mean Sensitivity analyses, fig.cap = "Figure S51. Sensitivity analysis for mean pest density."}
+
+  # To re-run (and save) the analysis, set to TRUE
+if(run_sens_ana) {
+  
+  meta.PD.Mean.int.SA.ESID <- 
+    saForest(meta.PD.dat, meta.PD.Mean.int, "lnRR_vi", "ES_ID")
+  meta.PD.Mean.int.SA.ExpID <- 
+    saForest(meta.PD.dat, meta.PD.Mean.int, "lnRR_vi", "Exp_ID")
+  meta.PD.Mean.int.SA.PaperID <- 
+    saForest(meta.PD.dat, meta.PD.Mean.int, "lnRR_vi", "Paper_ID")
+
+  saveSA(meta.PD.Mean.int.SA.ESID)
+  saveSA(meta.PD.Mean.int.SA.ExpID)
+  saveSA(meta.PD.Mean.int.SA.PaperID)
+  
+}
+
+  # To load save analyses, set to TRUE
+if(load_sens_ana) {
+  
+  readSA("PD", "Mean", "ESID") +
+    ggtitle("Sensitivity analysis of Pest density - Mean effect",
+            "Removing Effect sizes one by one")
+  
+  readSA("PD", "Mean", "ExpID") +
+    ggtitle("Sensitivity analysis of Pest density - Mean effect",
+            "Removing Experiments one by one")
+  
+  readSA("PD", "Mean", "PaperID") +
+    ggtitle("Sensitivity analysis of Pest density - Mean effect",
+            "Removing Papers one by one")
+  
+}
+    
+```
+
+Clearly, here we can see that there is something happening with one experiment (experiment 54 in paper 45). Let us explore which one it is just below.
+
+```{r Helenius paper}
+# So clearly there is something with exp. 54 in paper 45
+    # By Helenius 1990
+meta.PD.dat %>%
+  filter(Paper_ID == 45) %>%
+  select(Paper_name, Publication_year, Exp_ID, Exp_type_1, ctrl_Mean, tmt_Mean) %>%
+  kable
+
+```
+
+This is the paper from Helenius published in 1990 with a huge effect size value. Note the date (1990): this is the first year of publication in our database for an effect size on pest density. Maybe this explains the time-lag effect that we detected earlier. Let us re-fit the model without the data from this paper (results in Fig. S52).
+
+```{r PestD Mean postSA, fig.cap = "Figure S52. Meta-analysis of pest density mean (lnRR), after removing one influential paper (Helenius 1990) following sensitivity analyses (intercept-only model)."}
+
+# So let's refit a model without this one
+meta.PD.dat.postSA <- meta.PD.dat %>% filter(Paper_ID != 45)
+
+vcov.PD.lnRR.05.postSA <- vcalc(vi = lnRR_vi, 
+                               cluster = clusterID, 
+                               obs = ES_ID, 
+                               data = meta.PD.dat.postSA, 
+                               rho = 0.5)
+  
+# Exploring results...
+meta.PD.Mean.postSA.int <-
+  update(meta.PD.Mean.int, V = vcov.PD.lnRR.05.postSA, 
+         data = meta.PD.dat.postSA)
+
+mResults_PD.Mean.postSA.int <- 
+  mod_results(meta.PD.Mean.postSA.int, group = "Exp_ID")
+
+mResults_PD.Mean.postSA.int %>%
+  orchard_plot(xlab = "lnRR") +
+  ggtitle("Meta-analysis of mean effect on pest density",
+          subtitle = "After sensitivity analysis and paper exclusion")  +
+  scale_colour_manual(values = "#CC6677") +
+  scale_fill_manual(values = "#CC6677")
+
+```
+
+Now, a small overall effect of sugar presence is detected! However, we have to check for publication bias again. It seems that it is still present, although the small-study effect now appears to be stronger than the time-lag effect (see summary below as well as Fig. S53).
+
+```{r PestD Mean postSA pub. bias analysis, fig.cap = "Figure S53. Publication bias analysis for mean pest density after removing one influential paper following sensitivity analyses (Helenius 1990)."}
+
+# Checking for publication bias again...
+meta.PD.Mean.postSA.int.pb <- 
+update(meta.PD.Mean.int.pb, V = vcov.PD.lnRR.05.postSA, 
+       data = meta.PD.dat.postSA)
+
+summary(meta.PD.Mean.postSA.int.pb)
+
+bubble_plot(meta.PD.Mean.postSA.int.pb, mod = "ess_se", group = "Exp_ID") +
+  xlab("Effective sample size") +
+  ylab("LnRR") +
+  ggtitle("Analysis of publication bias for the effect on pest density mean (after sensitivity analyses)",
+          subtitle = "Small study effect")
+  
+bubble_plot(meta.PD.Mean.postSA.int.pb, mod = "year.c", group = "Exp_ID") +
+  scale_x_continuous(
+    labels = unique(round(meta.PD.dat$Publication_year / 5) * 5),
+    breaks = unique(round(meta.PD.dat$year.c / 5) * 5)
+  ) +
+  xlab("Publication year") +
+  ylab("LnRR") +
+  ggtitle("Analysis of publication bias for the effect on pest density mean (after sensitivity analyses)",
+          subtitle = "Decline effect")
+
+```
+
+So let us now re-adjust the model for publication bias (Fig. S54).
+
+```{r PestD Mean pub. bias adjusting, fig.cap = "Figure S54. Meta-analysis of mean pest density, adjusting for publication bias after removing one influential paper following sensitivity analyses (Helenius 1990)."}
+
+mResults_PD.Mean.postSA.Adj <- 
+  modResultsAdjPb("PD", "Mean", postSA = T)
+mResults_PD.Mean.postSA.Adj 
+
+meta.PD.Mean.modResultsAdjPb <- plotAdjEst("PD", "Mean", "lnRR", "Pest Density", postSA = T)
+meta.PD.Mean.modResultsAdjPb
+
+
+```
+Besides, when adjusting for publication bias, the effect of sugar presence disappears. Let us now re-run sensitivity analyses on this new model version.
+
+```{r PestD Mean re-running Sensitivity analyses}
+
+if(run_sens_ana) {
+  
+  meta.PD.Mean.int.SA.ExpID.postSA <- 
+    saForest(meta.PD.dat.postSA, meta.PD.Mean.postSA.int, "lnRR_vi", "Exp_ID")
+  
+  meta.PD.Mean.int.SA.PaperID.postSA <- 
+    saForest(meta.PD.dat.postSA, meta.PD.Mean.postSA.int, "lnRR_vi", "Paper_ID")
+  
+  saveSA(meta.PD.Mean.int.SA.ExpID.postSA) 
+  saveSA(meta.PD.Mean.int.SA.PaperID.postSA) 
+  
+}
+
+if(load_sens_ana) {
+  
+  readSA("PD", "Mean", "PaperID", postSA = T) +
+    ggtitle("Sensitivity analysis of Pest density - Mean effect",
+            "Removing Papers one by one (Helenius 1990 excluded)")
+  
+  readSA("PD", "Mean", "ExpID", postSA = T) +
+    ggtitle("Sensitivity analysis of Pest density - Mean effect",
+            "Removing Experiments one by one (Helenius 1990 excluded)")
+  
+}
+
+```
+
+We can see that there is still one influential paper (paper 91), but removing it does not change results qualitatively. We can see below that this paper is Tajmiri et al. 2017.
+
+```{r Tajmiri et al. paper}
+
+meta.PD.dat %>% filter(Paper_ID == 91) %>%
+  select(Var_ID, ctrl_Mean, tmt_Mean) %>%
+  kable
+
+```
+
+Finally, let us do some sensitivity analyses to methodological choices, as explained in the paper M&M section. We will evaluate how results vary if we exclude papers from one given experimental type or distance category (see Material and Methods section in the paper, [variable description file on the project repository](https://osf.io/fuda5?view_only=c61723dcf2e245d39d5462dc8f799d96), as well as section [4.1 Pooling distance measures] section). Luckily, these dot not appear to affect results too much, beyond sampling variance.
+
+```{r PestD Mean SA methodological choices, fig.cap  = "Figure S55. Mean pest density: sensitivity analyses to methodological variation."}
+
+# Sensitivity analyses to methodological choices
+
+  # Experimental type?
+saForest(meta.PD.dat.postSA, meta.PD.Mean.postSA.int, "lnRR_vi", "Exp_type_1")
+  # Distance category (cf datasheet)?
+saForest(meta.PD.dat.postSA, meta.PD.Mean.postSA.int, "lnRR_vi", "Distance_category")
+    # Overall ES changes when removing A but that's normal: most ES are here
+    # Other categories do not change results qualitatively so we can keep them
+
+  # We can also test for the effect of these as moderators: no effect
+update(meta.PD.Mean.postSA.int, mods = ~ Exp_type_1 + Distance_category) %>%
+  anova(meta.PD.Mean.postSA.int, refit = TRUE)
+
+update(meta.PD.Mean.postSA.int, mods = ~ Exp_type_1 + Distance_category) %>%
+  mod_results(group = "Exp_ID", mod = "Exp_type_1") %>%
+  orchard_plot(xlab = "lnRR")
+
+update(meta.PD.Mean.postSA.int, mods = ~ Exp_type_1 + Distance_category) %>%
+  mod_results(group = "Exp_ID", mod = "Distance_category") %>%
+  orchard_plot(xlab = "lnRR")
+
+```
+
+As explained in the paper (M&M section), we will also do a sensitivity analysis to the correlation level $\rho$ chosen for the variance-covariance matrix of dependent effect sizes (Nakagawa et al. 2023a; see [Variance-covariance matrix] section). Indeed, depending on whether we consider these measures to be highly correlated with each other, or only slightly, this could influence the estimated parameters and their uncertainty. We'll try 4 different $\rho$ values, from low to high correlation: 0.3, 0.5, 0.7 and 0.9. We then re-run models, with or without publication bias, to see how estimates change (Table S20 and S21).
+
+
+```{r PestD Mean SA Correlation level}
+
+  # We'll just generate 4 different values, from low to high correlation (0.3 to 0.9)
+listV.PD.Mean.postSA.int <- 
+  lapply(c(0.3, 0.5, 0.7, 0.9), function(Rho) {
+    vcalc(vi = lnRR_vi, 
+          cluster = clusterID, 
+          obs = ES_ID, 
+          data = meta.PD.dat.postSA, 
+          rho = Rho)
+  } )
+
+  # Now we re-run the models (the final ones)
+    # And check how coefficients change
+    # Arguably we could repeat the whole process but it would be very long
+
+# Model unadjusted for publication bias
+varCorLev_PD.Mean.postSA.int <- 
+  lapply(listV.PD.Mean.postSA.int, function(v)
+    update(meta.PD.Mean.postSA.int, V = v))
+
+lapply(varCorLev_PD.Mean.postSA.int, 
+       function(c) coefficients(summary(c))) %>%
+  bind_rows(.id = "cor_level") %>%
+  mutate(cor_level = c(0.3, 0.5, 0.7, 0.9)) %>%
+  remove_rownames %>% 
+  kable(caption = "Table S20. Estimates obtained with four different degrees of correlation for dependent effect sizes (0.3 to 0.9) for the meta-analysis of mean pest density. Model without publication bias.")
+
+# Model adjusted for publication bias
+varCorLev_PD.Mean.postSA.int.pb <- 
+  lapply(listV.PD.Mean.postSA.int, function(v)
+    update(meta.PD.Mean.postSA.int.pb, V = v))
+
+lapply(varCorLev_PD.Mean.postSA.int.pb, 
+       function(c) {
+         coefficients(summary(c)) %>%
+           as.data.frame %>%
+           rownames_to_column}) %>% 
+  bind_rows(.id = "cor_level") %>%
+  mutate(cor_level = rep(c(0.3, 0.5, 0.7, 0.9), each = 3)) %>% kable(caption = "Table S21. Estimates obtained with four different degrees of correlation for dependent effect sizes (0.3 to 0.9) for the meta-analysis of mean pest density. Model with publication bias.")
+
+```
+From these, we can conclude that:
+- In the model version that is unadjusted for publication bias, results are unsensititive to the chosen correlation level $\rho$: we still have an overall effect no matter its value.
+- In the adjusted version of the model, we do not detect an effect of sugar on pest density whatever the correlation level. However, when choosing high correlation values (0.7 or 0.9), evidence for publication bias disappears, according to p-values. In that case, we might be willing to favour the unadjusted version of the model and conclude that a (small) negative effect of sugars exists on pest density. But see how this depends on small variations on parameter values and how evidence remains low.
+
+
+### 6.2.2 Meta-analysis of variance
+
+Now that we analysed pest density mean, let us focus on pest density variability. In other words, are pest density levels less variable when sugar is available? This could happen due to more better fed natural enemies populations leading to more stable top-down regulation. We will follow the exact same procedure than for mean pest density, using *lnCVR* rather than *lnRR*.
+
+#### Variance-covariance matrix.
+
+Here again, we construct the variance-covariance matrix for dependence.
+
+```{r PestD Var VCOV}
+vcov.PD.lnCVR.05 <- 
+  metafor::vcalc(vi = lnCVR_vi, 
+                 cluster = clusterID, 
+                 obs = ES_ID, 
+                 data = meta.PD.dat, 
+                 rho = 0.5)
+```
+
+#### Random structure.
+
+Then we select the model's random structure. Based on AIC, we select `meta.PD.Var.3`: the model structure with "experiment" as the only random effect.
+
+```{r PestD Var random structure}
+    # Only Shared Study
+meta.PD.Var.1 <- rma.mv(lnCVR_yi, vcov.PD.lnCVR.05,
+                          random = ~1|sh_stud, 
+                          data = meta.PD.dat,
+                          method = 'ML')
+
+      # Shared Study AND Experiment (nested)
+meta.PD.Var.2 <- update(meta.PD.Var.1, random = ~1|sh_stud/Exp_Nb)
+      # Shared Experiment only
+meta.PD.Var.3 <- update(meta.PD.Var.1, random = ~1|Exp_ID)
+      # Shared Experiment and Year
+meta.PD.Var.4 <- update(meta.PD.Var.1, random = ~1|Exp_ID/Exp_rep)
+      # Shared Experiment and Sub_experiment
+meta.PD.Var.5 <- update(meta.PD.Var.1, random =~1|Exp_ID/Sub_exp,
+                          data = ungroup(meta.PD.dat) %>% 
+                            mutate(Sub_exp = ifelse(is.na(Sub_exp), 1, Sub_exp))
+)
+      # AIC comparison
+AIC(meta.PD.Var.1, meta.PD.Var.2, meta.PD.Var.3,
+    meta.PD.Var.4, meta.PD.Var.5) 
+        # --> meta.PD.Var.3 has the lowest AIC
+        # (shared study only)
+        # we probably do not have enough information for effects of other factors
+
+```
+
+#### Intercept-only model.
+
+We then fit the intercept-only model for pest density variance (Fig. S56). However, when profiling the random effect, we see that it cannot be estimated (Fig. S57). This does not mean that the experiment has no effect on pest density variance: it may be that we do not have sufficient information to estimate its effect. This is likely a limit due to the lack of data. Anyway, let us choose parsimony and re-fit a model without random effects (Fig. S58). Results do not change qualitatively.
+
+```{r PestD Var intercept, fig.cap = "Figure S56. Meta-analysis of pest density variability (lnCVR): intercept-only model, after selecting the random structure via AIC. k represents the number of effect sizes and the value in parenthesis is the number of corresponding experiments."}
+meta.PD.Var.int.rand <- update(meta.PD.Var.3, method = 'REML')
+summary(meta.PD.Var.int.rand)
+mResults_PD.Var.int <- mod_results(meta.PD.Var.int.rand, mod = "1", group = "Exp_ID")
+print(mResults_PD.Var.int)
+orchard_plot(mResults_PD.Var.int, xlab = "lnRR") +
+  ggtitle("Meta-analysis of pest density variance",
+          subtitle = "Intercept-only model")  +
+  scale_colour_manual(values = "#CC6677") +
+  scale_fill_manual(values = "#CC6677")
+```
+
+```{r PestD Var profiling, fig.cap = "Fig S57. Profiling the random effect (experiment) for the meta-analysis of pest density variance."}
+    # Let's just check that Random Effects were well estimated
+      # Takes a few second (about 20s on my PC)
+      # No convergence!
+profile.rma.mv(meta.PD.Var.int.rand)
+```
+
+```{r PestD Var intercept - simpler, fig.cap = "Figure S58. Meta-analysis of pest density variability (lnCVR): intercept-only model, without random effects. k represents the number of effect sizes and the value in parenthesis is the number of corresponding experiments."}
+meta.PD.Var.int <- update(meta.PD.Var.int.rand, random = NULL)
+summary(meta.PD.Var.int)
+mResults_PD.Var.int <- mod_results(meta.PD.Var.int, mod = "1", group = "Exp_ID")
+print(mResults_PD.Var.int)
+orchard_plot(mResults_PD.Var.int, xlab = "lnRR") +
+  ggtitle("Meta-analysis of pest density variance",
+          subtitle = "Intercept-only model, no random structure")  +
+  scale_colour_manual(values = "#CC6677") +
+  scale_fill_manual(values = "#CC6677")
+
+```
+
+
+#### Model with moderators.
+
+We add moderators to the preceding model (Fig. S59).
+
+```{r PestD Var mods, fig.cap = "Figure S59. Meta-analysis of pest density variability (lnCVR): model including moderators. k represents the number of effect sizes and the value in parenthesis is the number of corresponding experiments. AS stands for 'Artificial Sugars'."}
+  ## This is the intercept-only model. What about moderators?
+meta.PD.Var.mods <- update(meta.PD.Var.int, mods = ~ Mod - 1)
+summary(meta.PD.Var.mods)
+mResults_PD.Var.mods <- mod_results(meta.PD.Var.mods, mod = "Mod", group = "Exp_ID")
+print(mResults_PD.Var.mods)
+orchard_plot(mResults_PD.Var.mods, xlab = "lnRR") +
+  ggtitle("Meta-analysis of pest density variance",
+          subtitle = "Model with moderators")
+
+if(profile_random) profile.rma.mv(meta.PD.Var.mods)
+
+    # Test of moderators
+anova.rma(meta.PD.Var.int)
+anova.rma(meta.PD.Var.mods)
+```
+
+#### Model comparison.
+
+```{r PestD Var comp}
+  # Model comparison
+modelCompTab("PD", "Var")
+  
+  # Model performance and heterogeneity
+modelperfTab("PD", "Var")
+```
+
+
+Here again, model comparison shows no effect of moderators on pest density variability.
+
+#### Residual distribution.
+
+We can now do diagnostics of the selected intercept-only model just below.
+
+```{r PestD Var diagnostics, fig.cap = "Figure S57. Diagnostics of the retained model (intercept-only) for the meta-analysis of pest density variability (lnCVR)."}
+
+rmaQQplot("PD", "Var", "Pest density", "lnCVR")
+rmaResidHist("PD", "Var", "Pest density", "lnCVR")
+
+```
+
+#### Publication bias.
+
+Let us now repeat the same checks for publication bias (Fig. S60).
+
+```{r PestD Var funnel precision, fig.cap = "Figure S60. Publication bias analysis for the meta-analysis of the effect of sugar presence on pest density variability (lnCVR)."}
+
+      # Funnel plots
+funnel(meta.PD.Var.int, yaxis = "seinv")
+essFunnel("PD", "Var", "lnCVR")
+        # Maybe a small study effect but due to a small group of papers?
+
+
+      # Proper test
+meta.PD.Var.int.pb <- update(meta.PD.Var.int, mods = ~ ess_se + year.c)
+summary(meta.PD.Var.int.pb) # No clear evidence here
+anova(meta.PD.Var.int.pb)
+
+      # Graphical analysis
+bubble_plot(meta.PD.Var.int.pb, mod = "ess_se", group = "Exp_ID") +
+  ggtitle("Analysis of publication bias for the effect on pest density variance",
+          subtitle = "Small study effect")
+        # Indeed we can see the group of papers
+
+bubble_plot(meta.PD.Var.int.pb, mod = "year.c", group = "Exp_ID") +
+  scale_x_continuous(
+    labels = seq(min(meta.PD.dat$Publication_year), max(meta.PD.dat$Publication_year), by = 6),
+    breaks = seq(min(meta.PD.dat$year.c), max(meta.PD.dat$year.c), by = 6)
+  ) +
+  ggtitle("Analysis of publication bias for the effect on pest density variance",
+          subtitle = "Decline effect")  
+  # Helenius 1990 has an effect here too? Actually we probably have some publication bias here, though not enough data to be detected
+```
+
+We detect no clear evidence for publication bias here, but there appear to be a trend for a time-lag effect with sugar effect on pest density variance stabilizing to 0 over time. The first seminal paper could have some effect here too. Let's investigate this in the next section (Fig. S61).
+
+#### Sensitivity analyses.
+
+```{r PestD Var Sensitivity analyses, fig.cap = "Figure S61. Sensitivity analyses for density variability."}
+# This time we do it all at once
+  # check sensAnCompl() custom function
+sensAnCompl("PD", "Var", "lnCVR", "Pest density", run_sens_ana = run_sens_ana)
+  # We can see the effect of Helenius 1990 here too
+  # But doesn't change results that much
+
+# Also quickly checking for sensitivity to varying correlation levels
+  # check sensAnCompl() custom function
+    # First table is model without publication bias, 
+    # second table is model with publication bias
+sensAnCor(meta.PD.dat, "lnCVR", meta.PD.Var.int, meta.PD.Var.int.pb) %>% kable
+```
+Indeed, we can see the effect of Helenius 1990's paper here too (Fig. S61). But removing it does not change results that much. Let us keep the model that way.
+
+```{r PestD Var Final plot}
+    ## Final plot
+      # We just make this as an intermediate step for the following figure
+meta.PD.Var.modResultsAdjPb <- plotAdjEst("PD", "Var", "lnCVR", "Pest density")
+```
+
+### 6.2.3 Final plot for the meta-analysis of pest density
+
+We can make the final plot for the meta-analysis of sugar presence on pest density just below, encompassing mean and variance (Fig. S62). This well help us building our final figure at the end of the document.
+
+```{r PestD Final plot, plot.cap = "Figure S62. Final plot for the meta-analysis of pest density."}
+meta.PD.modResultsAdjPb <-
+ggpubr::ggarrange(meta.PD.Mean.modResultsAdjPb + 
+            ggtitle("Meta-analysis of the effect on pest density", "Mean") + 
+            ylab("lnRR") +
+            theme(axis.text.y = element_blank()), 
+          meta.PD.Var.modResultsAdjPb +
+            ggtitle("", "Variance") + 
+            ylab("lnCVR") +
+            theme(axis.text.y = element_blank())
+)
+
+meta.PD.modResultsAdjPb
+```
+
+## 6.3 Parasitoid abundance
+
+Let us now do the meta-analysis of sugar presence effects on parasitoid abundance.
+
+```{r Parasitoid abundance data}
+
+## First, we extract the subset corresponding to parasitoid abundance values only
+meta.ParAb.dat <- meta.tab %>%
+  filter(Variable == "Parasitoid_abundance")
+
+```
+
+### 6.3.1 Meta-analysis of mean
+
+We will implement the same whole process as for pest density mean, see Pest Density [6.2.1 Meta-analysis of mean] section for details.
+
+```{r ParAb Mean}
+  ## Here we construct the VCOV matrix for dependence
+vcov.ParAb.lnRR.05 <- 
+  metafor::vcalc(vi = lnRR_vi, 
+                 cluster = clusterID, 
+                 obs = ES_ID, 
+                 data = meta.ParAb.dat, 
+                 rho = 0.5)
+
+
+  ## Now we test the random structure (models are fitted with ML)
+
+# Only Shared Study
+meta.ParAb.Mean.1 <- rma.mv(lnRR_yi, vcov.ParAb.lnRR.05,
+                        random = ~1|sh_stud, 
+                        data = meta.ParAb.dat,
+                        method = 'ML')
+
+# Shared Study AND Experiment (nested)
+meta.ParAb.Mean.2 <- update(meta.ParAb.Mean.1, random = ~1|sh_stud/Exp_Nb)
+# Shared Experiment only
+meta.ParAb.Mean.3 <- update(meta.ParAb.Mean.1, random = ~1|Exp_ID)
+# Shared Experiment and Year
+meta.ParAb.Mean.4 <- update(meta.ParAb.Mean.1, random = ~1|Exp_ID/Exp_rep)
+# Shared Experiment and Sub_experiment
+meta.ParAb.Mean.5 <- update(meta.ParAb.Mean.1, random =~1|Exp_ID/Sub_exp,
+                           data = ungroup(meta.ParAb.dat) %>% 
+                             mutate(Sub_exp = ifelse(is.na(Sub_exp), 1, Sub_exp))
+                           )
+  # AIC comparison
+AIC(meta.ParAb.Mean.1, meta.ParAb.Mean.2, meta.ParAb.Mean.3,
+    meta.ParAb.Mean.4, meta.ParAb.Mean.5) 
+  # -> Keeping model 1 (Study effect only)
+
+  ## So we can fit our intercept-only model using REML:
+meta.ParAb.Mean.int <- update(meta.ParAb.Mean.3, method = 'REML')
+summary(meta.ParAb.Mean.int)
+mResults_ParAb.Mean.int <- mod_results(meta.ParAb.Mean.int, mod = "1", group = "Exp_ID")
+print(mResults_ParAb.Mean.int)
+orchard_plot(mResults_ParAb.Mean.int, xlab = "lnRR") +
+  ggtitle("Meta-analysis of parasitoid abundance mean",
+          subtitle = "Intercept-only model")  +
+  scale_colour_manual(values = "#CC6677") +
+  scale_fill_manual(values = "#CC6677")
+
+# Let's just check that Random Effects were well estimated
+# Weak effect!
+if(profile_random) profile.rma.mv(meta.ParAb.Mean.int)
+
+  ## Model with moderators
+meta.ParAb.Mean.mods <- update(meta.ParAb.Mean.int, mods = ~ Mod - 1)
+summary(meta.ParAb.Mean.mods)
+mResults_ParAb.Mean.mods <- mod_results(meta.ParAb.Mean.mods, mod = "Mod", group = "Exp_ID")
+print(mResults_ParAb.Mean.mods)
+orchard_plot(mResults_ParAb.Mean.mods, xlab = "lnRR") +
+  ggtitle("Meta-analysis of parasitoid abundance mean",
+          subtitle = "Model with moderators")
+
+if(profile_random) profile.rma.mv(meta.ParAb.Mean.mods)
+
+anova.rma(meta.ParAb.Mean.int)
+anova.rma(meta.ParAb.Mean.mods)
+modelCompTab("ParAb", "Mean")
+
+  ## Analysing model performance and heterogeneity
+
+    # Model performance
+modelperfTab("ParAb", "Mean")
+
+    # Residual distribution
+rmaQQplot("ParAb", "Mean", "Parasitoid abundance", "lnRR")
+rmaResidHist("ParAb", "Mean", "Parasitoid abundance", "lnRR")
+
+  ## Publication bias
+
+    # Funnel plots
+funnel(meta.ParAb.Mean.int, yaxis = "seinv")
+essFunnel("ParAb", "Mean", "lnCVR")
+
+    # Proper test
+meta.ParAb.Mean.int.pb <- update(meta.ParAb.Mean.int, mods = ~ ess_se + year.c)
+summary(meta.ParAb.Mean.int.pb)
+anova(meta.ParAb.Mean.int.pb)
+
+    # Graphical analysis
+bubble_plot(meta.ParAb.Mean.int.pb, mod = "ess_se", group = "Exp_ID") +
+  ggtitle("Analysis of publication bias for the effect on parasitoid abundance mean",
+          subtitle = "Small study effect")
+
+bubble_plot(meta.ParAb.Mean.int.pb, mod = "year.c", group = "Exp_ID") +
+  scale_x_continuous(
+    labels = seq(min(meta.ParAb.dat$Publication_year), max(meta.ParAb.dat$Publication_year), by = 6),
+    breaks = seq(min(meta.ParAb.dat$year.c), max(meta.ParAb.dat$year.c), by = 6)
+  ) +
+  ggtitle("Analysis of publication bias for the effect on parasitoid abundance mean",
+          subtitle = "Decline effect")  
+
+  ## Sensitivity analysis
+sensAnCompl("ParAb", "Mean", "lnRR", "Parasitoid abundance", run_sens_ana = run_sens_ana)
+sensAnCor(meta.ParAb.dat, "lnRR", meta.ParAb.Mean.int, meta.ParAb.Mean.int.pb)
+
+  ## Final plot
+meta.ParAb.Mean.modResultsAdjPb <- plotAdjEst("ParAb", "Mean", "lnCVR", "Pest Density")
+meta.ParAb.Mean.modResultsAdjPb
+```
+
+
+### 6.3.2 Meta-analysis of variance
+
+We will implement the same whole process as for pest density variance, see Pest Density [6.2.2 Meta-analysis of variance] section for details.
+
+```{r ParAb Var}
+    ## Here we construct the VCOV matrix for dependence
+vcov.ParAb.lnCVR.05 <- 
+  metafor::vcalc(vi = lnCVR_vi, 
+                 cluster = clusterID, 
+                 obs = ES_ID, 
+                 data = meta.ParAb.dat, 
+                 rho = 0.5)
+
+
+    ## Now we test the random structure (models are fitted with ML)
+
+      # Only Shared Study
+meta.ParAb.Var.1 <- rma.mv(lnCVR_yi, vcov.ParAb.lnCVR.05,
+                            random = ~1|sh_stud, 
+                            data = meta.ParAb.dat,
+                            method = 'ML')
+
+      # Shared Study AND Experiment (nested)
+meta.ParAb.Var.2 <- update(meta.ParAb.Var.1, random = ~1|sh_stud/Exp_Nb)
+      # Shared Experiment only
+meta.ParAb.Var.3 <- update(meta.ParAb.Var.1, random = ~1|Exp_ID)
+      # Shared Experiment and Year
+meta.ParAb.Var.4 <- update(meta.ParAb.Var.1, random = ~1|Exp_ID/Exp_rep)
+      # Shared Experiment and Sub_experiment
+meta.ParAb.Var.5 <- update(meta.ParAb.Var.1, random =~1|Exp_ID/Sub_exp,
+                            data = ungroup(meta.ParAb.dat) %>% 
+                              mutate(Sub_exp = ifelse(is.na(Sub_exp), 1, Sub_exp))
+)
+      # AIC comparison
+AIC(meta.ParAb.Var.1, meta.ParAb.Var.2, meta.ParAb.Var.3,
+    meta.ParAb.Var.4, meta.ParAb.Var.5) 
+        # -> Keeping model 1 (Study effect only)
+
+  ## So we can fit our intercept-only model using REML:
+meta.ParAb.Var.int <- update(meta.ParAb.Var.1, method = 'REML')
+summary(meta.ParAb.Var.int)
+mResults_ParAb.Var.int <- mod_results(meta.ParAb.Var.int, mod = "1", group = "Exp_ID")
+print(mResults_ParAb.Var.int)
+orchard_plot(mResults_ParAb.Var.int, xlab = "lnCVR") +
+  ggtitle("Meta-analysis of parasitoid abundance variance",
+          subtitle = "Intercept-only model")
+
+    # Checking random effect fitting
+      # Ok but quite weak
+if(profile_random) profile.rma.mv(meta.ParAb.Var.int)
+
+  ## Model with moderators
+meta.ParAb.Var.mods <- update(meta.ParAb.Var.int, mods = ~ Mod - 1)
+summary(meta.ParAb.Var.mods)
+mResults_ParAb.Var.mods <- mod_results(meta.ParAb.Var.mods, mod = "Mod", group = "Exp_ID")
+print(mResults_ParAb.Var.mods)
+orchard_plot(mResults_ParAb.Var.mods, xlab = "lnCVR") +
+  ggtitle("Meta-analysis of parasitoid abundance variance",
+          subtitle = "Model with moderators")
+
+    # Checking random effect fitting
+if(profile_random) profile.rma.mv(meta.ParAb.Var.mods)
+
+    # Model comparison
+anova.rma(meta.ParAb.Var.int)
+anova.rma(meta.ParAb.Var.mods)
+modelCompTab("ParAb", "Var")
+
+  ## Analysing model performance and heterogeneity
+
+    # Model performance
+modelperfTab("ParAb", "Var")
+
+    # Residual distribution
+rmaQQplot("ParAb", "Var", "Parasitoid abundance", "lnCVR")
+rmaResidHist("ParAb", "Var", "Parasitoid abundance", "lnCVR")
+
+  ## Publication bias
+
+    # Funnel plots
+funnel(meta.ParAb.Var.int, yaxis = "seinv")
+essFunnel("ParAb", "Var", "lnCVR")
+
+    # Proper test
+meta.ParAb.Var.int.pb <- update(meta.ParAb.Var.int, mods = ~ ess_se + year.c)
+summary(meta.ParAb.Var.int.pb) # Decline effect?
+anova(meta.ParAb.Var.int.pb)
+
+    # Graphical analysis
+bubble_plot(meta.ParAb.Var.int.pb, mod = "ess_se", group = "Exp_ID") +
+  ggtitle("Analysis of publication bias for the effect on parasitoid abundance variance",
+          subtitle = "Small study effect")
+
+bubble_plot(meta.ParAb.Var.int.pb, mod = "year.c", group = "Exp_ID") +
+  scale_x_continuous(
+    labels = seq(min(meta.ParAb.dat$Publication_year), max(meta.ParAb.dat$Publication_year), by = 6),
+    breaks = seq(min(meta.ParAb.dat$year.c), max(meta.ParAb.dat$year.c), by = 6)
+  ) +
+  ggtitle("Analysis of publication bias for the effect on parasitoid abundance variance",
+          subtitle = "Decline effect")  
+
+  ## Adjusting effect sizes
+mResults_ParAb.Var.Adj <- modResultsAdjPb("ParAb", "Var")
+print(mResults_ParAb.Var.Adj)
+
+    # Let's quickly check the model fit again
+rmaQQplot("ParAb", "Var", "Parasitoid abundance", "lnCVR", pb = T) # Better
+rmaResidHist("ParAb", "Var", "Parasitoid abundance", "lnCVR", pb = T)
+
+  ## Sensitivity analysis
+sensAnCompl("ParAb", "Var", "lnCVR", "Parasitoid abundance", run_sens_ana = run_sens_ana)
+sensAnCor(meta.ParAb.dat, "lnCVR", meta.ParAb.Var.int, meta.ParAb.Var.int.pb)
+
+  # Okay there may be an effect masked by one paper
+    # Dively et al. 2012
+meta.ParAb.dat %>%
+  filter(Paper_ID == 30)
+
+meta.ParAb.dat %>%
+  filter(Exp_ID == 36)
+
+  ## Re-fitting the model
+
+    # So we exclude data...
+meta.ParAb.dat.postSA <- meta.ParAb.dat %>% filter(Paper_ID != 30)
+
+    # Re-fit the model with the right VCOV Matrix...
+vcov.ParAb.lnCVR.05.postSA <- vcalc(vi = lnCVR_vi, 
+                                cluster = clusterID, 
+                                obs = ES_ID, 
+                                data = meta.ParAb.dat.postSA, 
+                                rho = 0.5)
+
+meta.ParAb.Var.postSA.int <-
+  update(meta.ParAb.Var.int, V = vcov.ParAb.lnCVR.05.postSA, 
+         data = meta.ParAb.dat.postSA)
+
+mResults_ParAb.Var.postSA.int <- mod_results(meta.ParAb.Var.postSA.int, mod = "1", group = "Exp_ID")
+
+  # Check for publication bias again: it is still detected
+meta.ParAb.Var.postSA.int.pb <- 
+  update(meta.ParAb.Var.int.pb, V = vcov.ParAb.lnCVR.05.postSA, 
+         data = meta.ParAb.dat.postSA)
+
+mResults_ParAb.Var.postSA.int.pb <- mod_results(meta.ParAb.Var.postSA.int.pb, mod = "1", group = "Exp_ID")
+summary(meta.ParAb.Var.postSA.int.pb)
+
+bubble_plot(meta.ParAb.Var.postSA.int.pb, mod = "year.c", group = "Exp_ID") +
+  scale_x_continuous(
+    labels = seq(min(meta.ParAb.dat$Publication_year), max(meta.ParAb.dat$Publication_year), by = 6),
+    breaks = seq(min(meta.ParAb.dat$year.c), max(meta.ParAb.dat$year.c), by = 6)
+  ) +
+  ggtitle("Analysis of publication bias for the effect on parasitoid abundance variance",
+          subtitle = "Decline effect, after sensitivity analyses")  
+
+  # Checking residuals again
+rmaQQplot("ParAb", "Var", "Parasitoid abundance", "lnCVR", pb = T, postSA = T)
+rmaResidHist("ParAb", "Var", "Parasitoid abundance", "lnCVR", pb = T, postSA = T)
+
+  # Sensitivity to correlation level in VCOV matrix
+sensAnCor(meta.ParAb.dat.postSA, "lnCVR", meta.ParAb.Var.postSA.int, meta.ParAb.Var.postSA.int.pb)
+
+  ## Final plot
+mResults_ParAb.Var.postSA.Adj <- modResultsAdjPb("ParAb", "Var", postSA = T)
+meta.ParAb.Var.modResultsAdjPb <- plotAdjEst("ParAb", "Var", "lnCVR", "Parasitoid abundance", postSA = T)
+meta.ParAb.Var.modResultsAdjPb
+```
+
+
+### 6.3.3 Final plot for the meta-analysis of parasitoid abundance
+
+We can now plot the final output of parasitoid abundance meta-analysis just below (Fig. 61):
+
+```{r ParAb Final plot, plot.cap = "Figure S61. Final plot for the meta-analysis of parasitoid abundance."}
+
+
+meta.ParAb.modResultsAdjPb <-
+  ggpubr::ggarrange(meta.ParAb.Mean.modResultsAdjPb + 
+              ggtitle("Meta-analysis of the effect on parasitoid abundance", "Mean") + 
+              ylab("lnRR") +
+              theme(axis.text.y = element_blank()), 
+            meta.ParAb.Var.modResultsAdjPb +
+              ggtitle("", "Variance") + 
+              ylab("lnCVR") +
+              theme(axis.text.y = element_blank())
+  )
+
+meta.ParAb.modResultsAdjPb
+
+```
+
+
+## 6.4 Parasitism rate
+
+Let us now do the meta-analysis of sugar presence effects on parasitism rate.
+
+```{r Parasitism rate data}
+
+## First, we extract the subset corresponding to parasitism rate values only
+meta.ParR.dat <- meta.tab %>%
+  filter(Variable == "Parasitism_rate")
+
+```
+
+
+### 6.4.1 Meta-analysis of mean
+
+We will implement the same whole process as for pest density mean, see Pest Density [6.2.1 Meta-analysis of mean] section for details.
+
+```{r ParR Mean}
+
+    ## Here we construct the VCOV matrix for dependence
+vcov.ParR.lnRR.05 <- 
+  metafor::vcalc(vi = lnRR_vi, 
+                 cluster = clusterID, 
+                 obs = ES_ID, 
+                 data = meta.ParR.dat, 
+                 rho = 0.5)
+
+
+    ## Now we test the random structure (models are fitted with ML)
+
+      # Only Shared Study
+meta.ParR.Mean.1 <- rma.mv(lnRR_yi, vcov.ParR.lnRR.05,
+                            random = ~1|sh_stud, 
+                            data = meta.ParR.dat,
+                            method = 'ML')
+
+      # Shared Study AND Experiment (nested)
+meta.ParR.Mean.2 <- update(meta.ParR.Mean.1, random = ~1|sh_stud/Exp_Nb)
+      # Shared Experiment only
+meta.ParR.Mean.3 <- update(meta.ParR.Mean.1, random = ~1|Exp_ID)
+      # Shared Experiment and Year
+meta.ParR.Mean.4 <- update(meta.ParR.Mean.1, random = ~1|Exp_ID/Exp_rep)
+      # Shared Experiment and Sub_experiment
+meta.ParR.Mean.5 <- update(meta.ParR.Mean.1, random =~1|Exp_ID/Sub_exp,
+                            data = ungroup(meta.ParR.dat) %>% 
+                              mutate(Sub_exp = ifelse(is.na(Sub_exp), 1, Sub_exp))
+)
+      # AIC comparison
+AIC(meta.ParR.Mean.1, meta.ParR.Mean.2, meta.ParR.Mean.3,
+    meta.ParR.Mean.4, meta.ParR.Mean.5) 
+    # -> Keeping model 4 clearly (Season nested within experiment)
+
+  ## So we can fit our intercept-only model using REML:
+meta.ParR.Mean.int <- update(meta.ParR.Mean.4, method = 'REML')
+summary(meta.ParR.Mean.int)
+mResults_ParR.Mean.int <- mod_results(meta.ParR.Mean.int, mod = "1", group = "Exp_ID")
+print(mResults_ParR.Mean.int)
+orchard_plot(mResults_ParR.Mean.int, xlab = "lnRR") +
+  ggtitle("Meta-analysis of parasitism rate mean",
+          subtitle = "Intercept-only model")  +
+  scale_colour_manual(values = "#CC6677") +
+  scale_fill_manual(values = "#CC6677")
+
+    # Checking random effect fitting
+      # Here the effect of experimental season is higher
+if(profile_random) profile.rma.mv(meta.ParR.Mean.int)
+
+  ## Model with moderators
+meta.ParR.Mean.mods <- update(meta.ParR.Mean.int, mods = ~ Mod - 1)
+summary(meta.ParR.Mean.mods)
+mResults_ParR.Mean.mods <- mod_results(meta.ParR.Mean.mods, mod = "Mod", group = "Exp_ID")
+print(mResults_ParR.Mean.mods)
+orchard_plot(mResults_ParR.Mean.mods, xlab = "lnRR") +
+  ggtitle("Meta-analysis of parasitism rate mean",
+          subtitle = "Model with moderators")
+
+    # Checking random effect fitting
+if(profile_random) profile.rma.mv(meta.ParR.Mean.mods)
+
+    # Model comparison
+anova.rma(meta.ParR.Mean.int)
+anova.rma(meta.ParR.Mean.mods)
+modelCompTab("ParR", "Mean")
+
+  ## Analysing model performance and heterogeneity
+
+    # Model performance
+modelperfTab("ParR", "Mean")
+
+    # Residual distribution
+rmaQQplot("ParR", "Mean", "Parasitism rate", "lnRR")
+rmaResidHist("ParR", "Mean", "Parasitism rate", "lnRR")
+
+  ## Publication bias
+
+    # Funnel plots
+funnel(meta.ParR.Mean.int, yaxis = "seinv")
+funnel(meta.ParR.Mean.int, yaxis = "seinv",
+       xlim = c(-5, 5), ylim = c(0.1, 15))
+      # No clear evidence
+essFunnel("ParR", "Mean", "lnRR")
+      # Here maybe?
+
+# Proper test
+meta.ParR.Mean.int.pb <- update(meta.ParR.Mean.int, mods = ~ ess_se + year.c)
+summary(meta.ParR.Mean.int.pb) # No evidence indeed
+anova(meta.ParR.Mean.int.pb)
+
+# Graphical analysis
+bubble_plot(meta.ParR.Mean.int.pb, mod = "ess_se", group = "Exp_ID") +
+  ggtitle("Analysis of publication bias for the effect on parasitism rate mean",
+          subtitle = "Small study effect")
+
+bubble_plot(meta.ParR.Mean.int.pb, mod = "year.c", group = "Exp_ID") +
+  scale_x_continuous(
+    labels = seq(min(meta.ParR.dat$Publication_year), max(meta.ParR.dat$Publication_year), by = 6),
+    breaks = seq(min(meta.ParR.dat$year.c), max(meta.ParR.dat$year.c), by = 6)
+  ) +
+  ggtitle("Analysis of publication bias for the effect on parasitism rate mean",
+          subtitle = "Decline effect")  
+    # But the first paper (Leius et al. 1967) has a big effect though!
+
+
+## Sensitivity analysis
+sensAnCompl("ParR", "Mean", "lnRR", "Parasitism rate", run_sens_ana = run_sens_ana)
+sensAnCor(meta.ParR.dat, "lnRR", meta.ParR.Mean.int, meta.ParR.Mean.int.pb)
+
+meta.ParR.dat.noOutlier <- meta.ParR.dat %>% filter(lnRR_outl == "Ok")
+vcov.ParR.lnRR.05.noOutlier <- 
+  metafor::vcalc(vi = lnRR_vi, 
+                 cluster = clusterID, 
+                 obs = ES_ID, 
+                 data = meta.ParR.dat.noOutlier, 
+                 rho = 0.5)
+
+update(meta.ParR.Mean.int, 
+       data = meta.ParR.dat.noOutlier,
+       V = vcov.ParR.lnRR.05.noOutlier)
+
+
+
+## Final plot
+meta.ParR.Mean.modResultsAdjPb <- plotAdjEst("ParR", "Mean", "lnRR", "Parasitism rate")
+meta.ParR.Mean.modResultsAdjPb
+
+```
+
+
+### 6.4.2 Meta-analysis of variance
+
+We will implement the same whole process as for pest density variance, see Pest Density [6.2.2 Meta-analysis of variance] section for details.
+
+
+```{r ParR Var}
+
+    ## Here we construct the VCOV matrix for dependence
+vcov.ParR.lnCVR.05 <- 
+  metafor::vcalc(vi = lnCVR_vi, 
+                 cluster = clusterID, 
+                 obs = ES_ID, 
+                 data = meta.ParR.dat, 
+                 rho = 0.5)
+
+    ## Now we test the random structure (models are fitted with ML)
+
+      # Only Shared Study
+meta.ParR.Var.1 <- rma.mv(lnCVR_yi, vcov.ParR.lnCVR.05,
+                           random = ~1|sh_stud, 
+                           data = meta.ParR.dat,
+                           method = 'ML')
+
+      # Shared Study AND Experiment (nested)
+meta.ParR.Var.2 <- update(meta.ParR.Var.1, random = ~1|sh_stud/Exp_Nb)
+      # Shared Experiment only
+meta.ParR.Var.3 <- update(meta.ParR.Var.1, random = ~1|Exp_ID)
+      # Shared Experiment and Year
+meta.ParR.Var.4 <- update(meta.ParR.Var.1, random = ~1|Exp_ID/Exp_rep)
+      # Shared Experiment and Sub_experiment
+meta.ParR.Var.5 <- update(meta.ParR.Var.1, random =~1|Exp_ID/Sub_exp,
+                           data = ungroup(meta.ParR.dat) %>% 
+                             mutate(Sub_exp = ifelse(is.na(Sub_exp), 1, Sub_exp))
+)
+    # AIC comparison
+AIC(meta.ParR.Var.1, meta.ParR.Var.2, meta.ParR.Var.3,
+    meta.ParR.Var.4, meta.ParR.Var.5) 
+      # -> Keeping model 3 clearly (Experiment ID)
+
+  ## So we can fit our intercept-only model using REML:
+meta.ParR.Var.int <- update(meta.ParR.Var.3, method = 'REML')
+summary(meta.ParR.Var.int)
+mResults_ParR.Var.int <- mod_results(meta.ParR.Var.int, mod = "1", group = "Exp_ID")
+print(mResults_ParR.Var.int)
+orchard_plot(mResults_ParR.Var.int, xlab = "lnCVR") +
+  ggtitle("Meta-analysis of parasitism rate variance",
+          subtitle = "Intercept-only model")
+
+    # Checking random effect fitting
+      # Very weak effect
+if(profile_random) profile.rma.mv(meta.ParR.Var.int)
+
+  ## Model with moderators
+meta.ParR.Var.mods <- update(meta.ParR.Var.int, mods = ~ Mod - 1)
+summary(meta.ParR.Var.mods)
+mResults_ParR.Var.mods <- mod_results(meta.ParR.Var.mods, mod = "Mod", group = "Exp_ID")
+print(mResults_ParR.Var.mods)
+orchard_plot(mResults_ParR.Var.mods, xlab = "lnCVR") +
+  ggtitle("Meta-analysis of parasitism rate variance",
+          subtitle = "Model with moderators")
+
+    # Checking random effect fitting
+if(profile_random) profile.rma.mv(meta.ParR.Var.mods)
+
+    # Model comparison
+anova.rma(meta.ParR.Var.int)
+anova.rma(meta.ParR.Var.mods)
+modelCompTab("ParR", "Var")
+
+  ## Analysing model performance and heterogeneity
+
+    # Model performance
+modelperfTab("ParR", "Var")
+
+    # Residual distribution
+rmaQQplot("ParR", "Var", "Parasitism rate", "lnCVR")
+rmaResidHist("ParR", "Var", "Parasitism rate", "lnCVR")
+
+  ## Publication bias
+
+    # Funnel plots
+funnel(meta.ParR.Var.int, yaxis = "seinv")
+funnel(meta.ParR.Var.int, yaxis = "seinv",
+       xlim = c(-5, 5), ylim = c(0.1, 3))
+essFunnel("ParR", "Var", "lnCVR") # No clear evidence
+
+
+    # Proper test
+meta.ParR.Var.int.pb <- update(meta.ParR.Var.int, mods = ~ ess_se + year.c)
+summary(meta.ParR.Var.int.pb) # No evidence indeed
+anova(meta.ParR.Var.int.pb)
+
+    # Graphical analysis
+bubble_plot(meta.ParR.Var.int.pb, mod = "ess_se", group = "Exp_ID") +
+  ggtitle("Analysis of publication bias for the effect on parasitism rate variance",
+          subtitle = "Small study effect")
+
+bubble_plot(meta.ParR.Var.int.pb, mod = "year.c", group = "Exp_ID") +
+  scale_x_continuous(
+    labels = seq(min(meta.ParR.dat$Publication_year), max(meta.ParR.dat$Publication_year), by = 6),
+    breaks = seq(min(meta.ParR.dat$year.c), max(meta.ParR.dat$year.c), by = 6)
+  ) +
+  ggtitle("Analysis of publication bias for the effect on parasitism rate variance",
+          subtitle = "Decline effect")  
+    # See Leius et al. 1967 again though
+
+
+  ## Sensitivity analysis
+sensAnCompl("ParR", "Var", "lnCVR", "Parasitism rate", run_sens_ana = run_sens_ana)
+meta.ParR.dat %>%
+  filter(Paper_ID == 4) %>%
+  select(Var_ID, ctrl_Mean, ctrl_SD, tmt_Mean, tmt_SD)
+    # When removing this paper the effect disappears
+    # Indeed we have important variances in this paper
+      # Let's keep the results that way though
+      # The paper does not de part as much from the distribution
+      # as in other sensitivity analyses
+      # Let's keep that in mind in other papers
+
+  ## Final plot
+meta.ParR.Var.modResultsAdjPb <- plotAdjEst("ParR", "Var", "lnCVR", "Parasitism rate")
+meta.ParR.Var.modResultsAdjPb
+```
+
+
+### 6.4.3 Final plot for the meta-analysis of parasitism rate
+
+We can now plot the final output of parasitism rate meta-analysis just below (Fig. 61):
+
+```{r ParR Final plot, plot.cap = "Figure S61. Final plot for the meta-analysis of parasitism rate."}
+
+meta.ParR.modResultsAdjPb <-
+  ggpubr::ggarrange(meta.ParR.Mean.modResultsAdjPb + 
+              ggtitle("Meta-analysis of the effect on parasitism rate", "Mean") + 
+              ylab("lnRR") +
+              theme(axis.text.y = element_blank()), 
+            meta.ParR.Var.modResultsAdjPb +
+              ggtitle("", "Variance") + 
+              ylab("lnCVR") +
+              theme(axis.text.y = element_blank())
+  )
+
+meta.ParR.modResultsAdjPb
+
+```
+
+
+## 6.5 Yield
+
+Let us now do the meta-analysis of sugar presence effects on yield.
+
+```{r Yield data}
+
+## First, we extract the subset corresponding to yield values only
+meta.Yield.dat <- meta.tab %>%
+  filter(Variable == "Yield")
+```
+
+### 6.5.1 Meta-analysis of mean
+
+We will implement the same whole process as for pest density mean, see Pest Density [6.2.1 Meta-analysis of mean] section for details.
+
+
+```{r Yield Mean}
+
+    ## Here we construct the VCOV matrix for dependence
+vcov.Yield.lnRR.05 <- 
+  metafor::vcalc(vi = lnRR_vi, 
+                 cluster = clusterID, 
+                 obs = ES_ID, 
+                 data = meta.Yield.dat, 
+                 rho = 0.5)
+
+
+    ## Now we test the random structure (models are fitted with ML)
+
+      # Only Shared Study
+meta.Yield.Mean.1 <- rma.mv(lnRR_yi, vcov.Yield.lnRR.05,
+                           random = ~1|sh_stud, 
+                           data = meta.Yield.dat,
+                           method = 'ML')
+
+      # Shared Study AND Experiment (nested)
+meta.Yield.Mean.2 <- update(meta.Yield.Mean.1, random = ~1|sh_stud/Exp_Nb)
+      # Shared Experiment only
+meta.Yield.Mean.3 <- update(meta.Yield.Mean.1, random = ~1|Exp_ID)
+      # Shared Experiment and Year
+meta.Yield.Mean.4 <- update(meta.Yield.Mean.1, random = ~1|Exp_ID/Exp_rep)
+      # Shared Experiment and Sub_experiment
+meta.Yield.Mean.5 <- update(meta.Yield.Mean.1, random =~1|Exp_ID/Sub_exp,
+                           data = ungroup(meta.Yield.dat) %>% 
+                             mutate(Sub_exp = ifelse(is.na(Sub_exp), 1, Sub_exp))
+)
+      # AIC comparison
+AIC(meta.Yield.Mean.1, meta.Yield.Mean.2, meta.Yield.Mean.3,
+    meta.Yield.Mean.4, meta.Yield.Mean.5) 
+        # -> Keeping model 4 although not that much more informative
+
+  ## So we can fit our intercept-only model using REML:
+meta.Yield.Mean.int.complex <- update(meta.Yield.Mean.4, method = 'REML')
+summary(meta.Yield.Mean.int.complex)
+mResults_Yield.Mean.int <- mod_results(meta.Yield.Mean.int.complex, mod = "1", group = "Exp_ID")
+print(mResults_Yield.Mean.int)
+orchard_plot(mResults_Yield.Mean.int, xlab = "lnRR") +
+  ggtitle("Meta-analysis of parasitoid abundance mean",
+          subtitle = "Intercept-only model")  +
+  scale_colour_manual(values = "#CC6677") +
+  scale_fill_manual(values = "#CC6677")
+
+    # Checking random effect fitting
+profile.rma.mv(meta.Yield.Mean.int.complex)
+    # Does not converge for Exp.rep: let's keep it simple with model 3
+meta.Yield.Mean.int <- update(meta.Yield.Mean.3, method = 'REML')
+summary(meta.Yield.Mean.int)
+mResults_Yield.Mean.int <- mod_results(meta.Yield.Mean.int, mod = "1", group = "Exp_ID")
+print(mResults_Yield.Mean.int)
+orchard_plot(mResults_Yield.Mean.int, xlab = "lnRR") +
+  ggtitle("Meta-analysis of parasitoid abundance mean",
+          subtitle = "Intercept-only model")  +
+  scale_colour_manual(values = "#CC6677") +
+  scale_fill_manual(values = "#CC6677")
+
+    # Now it's ok
+profile.rma.mv(meta.Yield.Mean.int)
+
+  ## Model with moderators
+meta.Yield.Mean.mods <- update(meta.Yield.Mean.int, mods = ~ Mod - 1)
+summary(meta.Yield.Mean.mods)
+mResults_Yield.Mean.mods <- mod_results(meta.Yield.Mean.mods, mod = "Mod", group = "Exp_ID")
+print(mResults_Yield.Mean.mods)
+orchard_plot(mResults_Yield.Mean.mods, xlab = "lnRR") +
+  ggtitle("Meta-analysis of parasitoid abundance mean",
+          subtitle = "Model with moderators")
+
+    # Checking random effect fitting
+if(profile_random) profile.rma.mv(meta.Yield.Mean.mods)
+
+    # Model comparison
+anova.rma(meta.Yield.Mean.int)
+anova.rma(meta.Yield.Mean.mods)
+modelCompTab("Yield", "Mean")
+
+  ## Analysing model performance and heterogeneity
+
+    # Model performance
+modelperfTab("Yield", "Mean")
+
+    # Residual distribution
+rmaQQplot("Yield", "Mean", "Yield", "lnRR") # Ouch, bad fit
+rmaResidHist("Yield", "Mean", "Yield", "lnRR")
+
+  ## Publication bias
+
+    # Funnel plots
+funnel(meta.Yield.Mean.int, yaxis = "seinv")
+funnel(meta.Yield.Mean.int, yaxis = "seinv",
+       xlim = c(-5, 5), ylim = c(0.1, 25)) # Seems weird
+    # No clear evidence
+essFunnel("Yield", "Mean", "lnRR")  # Here too
+    # Here maybe?
+
+    # Proper test
+meta.Yield.Mean.int.pb <- update(meta.Yield.Mean.int, mods = ~ ess_se + year.c)
+summary(meta.Yield.Mean.int.pb) # Clear evidence of publication bias
+anova(meta.Yield.Mean.int.pb)
+
+    # Graphical analysis
+bubble_plot(meta.Yield.Mean.int.pb, mod = "ess_se", group = "Exp_ID") +
+  ggtitle("Analysis of publication bias for the effect on mean yield",
+          subtitle = "Small study effect")
+
+bubble_plot(meta.Yield.Mean.int.pb, mod = "year.c", group = "Exp_ID") +
+  scale_x_continuous(
+    labels = seq(min(meta.Yield.dat$Publication_year), max(meta.Yield.dat$Publication_year), by = 6),
+    breaks = seq(min(meta.Yield.dat$year.c), max(meta.Yield.dat$year.c), by = 6)
+  ) +
+  ggtitle("Analysis of publication bias for the effect on mean yield",
+          subtitle = "Decline effect")  
+
+    ## Adjusting effect sizes
+
+mResults_Yield.Mean.Adj <- modResultsAdjPb("Yield", "Mean")
+print(mResults_Yield.Mean.Adj)
+
+    # Let's quickly check the model fit again
+rmaQQplot("Yield", "Mean", "Yield", "lnCVR", pb = T)
+rmaResidHist("Yield", "Mean", "Yield", "lnCVR", pb = T)
+  # Not very good -> keep in mind that model fit is poor
+
+  ## Sensitivity analysis
+sensAnCompl("Yield", "Mean", "lnRR", "Yield", run_sens_ana = run_sens_ana)
+
+    # When removing that paper, the effect becomes significant
+      # Maybe because of high variances?
+meta.Yield.dat %>%
+  filter(Paper_ID == 104)
+
+meta.Yield.dat %>%
+  filter(Exp_ID == 117)
+
+meta.Yield.dat %>%
+  filter(Exp_ID == 117) %>%
+  dplyr::select(lnRR_vi,lnRR_sei)
+
+  # But this is one on only 9 papers
+  # And even if the effect becomes significant it is <2% increase anyway
+  # Moreover, we didn't even consider publication bias here
+  # Let's keep it that way?
+
+  # Sensitivity to correlation levels
+    # Very sensitive: not enough data -> impossible to answer
+sensAnCor(meta.Yield.dat, "lnRR", meta.Yield.Mean.int, meta.Yield.Mean.int.pb)
+
+## Final plot
+meta.Yield.Mean.modResultsAdjPb <- plotAdjEst("Yield", "Mean", "lnRR", "Yield")
+meta.Yield.Mean.modResultsAdjPb
+
+```
+
+
+### 6.5.2 Meta-analysis of variance
+
+We will implement the same whole process as for pest density variance, see Pest Density [6.2.2 Meta-analysis of variance] section for details.
+
+
+```{r Yield Var}
+
+## Here we construct the VCOV matrix for dependence
+vcov.Yield.lnCVR.05 <- 
+  metafor::vcalc(vi = lnCVR_vi, 
+                 cluster = clusterID, 
+                 obs = ES_ID, 
+                 data = meta.Yield.dat, 
+                 rho = 0.5)
+
+
+## Now we test the random structure (models are fitted with ML)
+
+# Only Shared Study
+meta.Yield.Var.1 <- rma.mv(lnCVR_yi, vcov.Yield.lnCVR.05,
+                          random = ~1|sh_stud, 
+                          data = meta.Yield.dat,
+                          method = 'ML')
+
+# Shared Study AND Experiment (nested)
+meta.Yield.Var.2 <- update(meta.Yield.Var.1, random = ~1|sh_stud/Exp_Nb)
+# Shared Experiment only
+meta.Yield.Var.3 <- update(meta.Yield.Var.1, random = ~1|Exp_ID)
+# Shared Experiment and Year
+meta.Yield.Var.4 <- update(meta.Yield.Var.1, random = ~1|Exp_ID/Exp_rep)
+# Shared Experiment and Sub_experiment
+meta.Yield.Var.5 <- update(meta.Yield.Var.1, random =~1|Exp_ID/Sub_exp,
+                          data = ungroup(meta.Yield.dat) %>% 
+                            mutate(Sub_exp = ifelse(is.na(Sub_exp), 1, Sub_exp))
+)
+# AIC comparison
+AIC(meta.Yield.Var.1, meta.Yield.Var.2, meta.Yield.Var.3,
+    meta.Yield.Var.4, meta.Yield.Var.5) 
+# -> Keeping model 1
+
+## So we can fit our intercept-only model using REML:
+meta.Yield.Var.int <- update(meta.Yield.Var.1, method = 'REML')
+summary(meta.Yield.Var.int)
+mResults_Yield.Var.int <- mod_results(meta.Yield.Var.int, mod = "1", group = "Exp_ID")
+print(mResults_Yield.Var.int)
+orchard_plot(mResults_Yield.Var.int, xlab = "lnCVR") +
+  ggtitle("Meta-analysis of parasitoid abundance variance",
+          subtitle = "Intercept-only model")
+
+# Checking random effect fitting
+  # Weak effect
+if(profile_random) profile.rma.mv(meta.Yield.Var.int)
+
+## Model with moderators
+meta.Yield.Var.mods <- update(meta.Yield.Var.int, mods = ~ Mod - 1)
+summary(meta.Yield.Var.mods)
+mResults_Yield.Var.mods <- mod_results(meta.Yield.Var.mods, mod = "Mod", group = "Exp_ID")
+print(mResults_Yield.Var.mods)
+orchard_plot(mResults_Yield.Var.mods, xlab = "lnCVR") +
+  ggtitle("Meta-analysis of parasitoid abundance variance",
+          subtitle = "Model with moderators")
+
+# Checking random effect fitting
+if(profile_random) profile.rma.mv(meta.Yield.Var.mods)
+
+# Model comparison
+anova.rma(meta.Yield.Var.int)
+anova.rma(meta.Yield.Var.mods)
+modelCompTab("Yield", "Var")
+
+## Analysing model performance and heterogeneity
+
+# Model performance
+modelperfTab("Yield", "Var")
+
+# Residual distribution
+rmaQQplot("Yield", "Var", "Yield", "lnCVR") # ok
+rmaResidHist("Yield", "Var", "Yield", "lnCVR")
+
+## Publication bias
+
+# Funnel plots
+funnel(meta.Yield.Var.int, yaxis = "seinv")
+essFunnel("Yield", "Var", "lnCVR") # Maybe?
+
+
+# Proper test
+meta.Yield.Var.int.pb <- update(meta.Yield.Var.int, mods = ~ ess_se + year.c)
+summary(meta.Yield.Var.int.pb) # No clear evidence (there may be a trend, not enough data?)
+anova(meta.Yield.Var.int.pb)
+
+# Graphical analysis
+bubble_plot(meta.Yield.Var.int.pb, mod = "ess_se", group = "Exp_ID") +
+  ggtitle("Analysis of publication bias for the effect on parasitoid abundance variance",
+          subtitle = "Small study effect")
+
+bubble_plot(meta.Yield.Var.int.pb, mod = "year.c", group = "Exp_ID") +
+  scale_x_continuous(
+    labels = seq(min(meta.Yield.dat$Publication_year), max(meta.Yield.dat$Publication_year), by = 6),
+    breaks = seq(min(meta.Yield.dat$year.c), max(meta.Yield.dat$year.c), by = 6)
+  ) +
+  ggtitle("Analysis of publication bias for the effect on parasitoid abundance variance",
+          subtitle = "Decline effect")  
+  # Could be a small one?
+
+## Sensitivity analysis
+sensAnCompl("Yield", "Var", "lnCVR", "Yield", run_sens_ana = run_sens_ana)
+sensAnCor(meta.Yield.dat, "lnRR", meta.Yield.Var.int, meta.Yield.Var.int.pb)
+
+## Final plot
+meta.Yield.Var.modResultsAdjPb <- plotAdjEst("Yield", "Var", "lnCVR", "Yield")
+meta.Yield.Var.modResultsAdjPb
+```
+
+
+### 6.5.3 Final plot for the meta-analysis of yield
+
+We can now plot the final output of yield meta-analysis just below (Fig. 61):
+
+```{r Yield Final plot, plot.cap = "Figure S61. Final plot for the meta-analysis of yield."}
+
+meta.Yield.modResultsAdjPb <-
+  ggpubr::ggarrange(meta.Yield.Mean.modResultsAdjPb + 
+              ggtitle("Meta-analysis of the effect on parasitoid abundance", "Mean") + 
+              ylab("lnRR") +
+              theme(axis.text.y = element_blank()), 
+            meta.Yield.Var.modResultsAdjPb +
+              ggtitle("", "Variance") + 
+              ylab("lnCVR") +
+              theme(axis.text.y = element_blank())
+  )
+
+meta.Yield.modResultsAdjPb
+```
+
+
+## 6.6 Meta-analysis: final results
+
+### 6.6.1 Final plot
+
+We make the final plot summarizing all results produced above that will be shown in the paper (Fig. S63):
+
+```{r Final plot}
+allMa.mean.df <- 
+  bind_rows(
+    list(
+      'Pest density' = mResults_PD.Mean.int$data,
+      'Parasitism rate' = mResults_ParR.Mean.int$data,
+      'Yield' = mResults_Yield.Mean.int$data,
+      'Parasitoid abundance' = mResults_ParAb.Mean.int$data
+    ),
+    .id = "Response"
+  ) %>%
+  mutate(Response = fct_rev(fct_relevel(Response,
+                                        c("Parasitoid abundance",
+                                          "Parasitism rate",
+                                          "Pest density",
+                                          "Yield")))) %>%
+  mutate(metrics = "Mean (lnRR)")
+
+allMA.mean.res <- 
+  bind_rows(
+    list(
+      'Pest density' = mResults_PD.Mean.postSA.Adj %>%
+        mutate(type = "ROM"),
+      'Parasitism rate' = mResults_ParR.Mean.int$mod_table %>%
+        mutate(Estimate = "Unadjusted",
+               type = "ROM"),
+      'Yield' = mResults_Yield.Mean.int$mod_table %>%
+        mutate(Estimate = "Unadjusted",
+               type = "ROM"),
+      'Parasitoid abundance' = mResults_ParAb.Mean.int$mod_table %>%
+        mutate(Estimate = "Unadjusted",
+               type = "ROM")
+    ),
+    .id = "Response"
+  ) %>%
+  mutate(metrics = "Mean (lnRR)")  %>%
+  group_by(Response) %>%
+  mutate(Overall_estimate = ifelse(n() > 1 & Estimate == "Unadjusted",
+                                   "Unadjusted (Evidence for pb)",
+                                   "Unadjusted (No evidence for pb) \nor Adjusted (Evidence for pb)"))
+
+
+
+final_plot_mean <- 
+  allMa.mean.df %>%
+  ggplot() +
+  ggbeeswarm::geom_quasirandom(
+    aes(y = yi, x = Response, size = 1/sqrt(vi), 
+        colour = Response, fill = Response),
+    alpha = 0.6) +
+  geom_hline(yintercept = 0, lty = "dashed") +
+  xlab(NULL) +
+  ylab("lnRR") +
+  coord_flip() +
+  guides(fill = "none",
+         colour = "none") +
+  geom_linerange(data = allMA.mean.res, 
+                 aes( 
+                   x = Response, 
+                   ymin = lowerCL, 
+                   ymax = upperCL),
+                 position = ggplot2::position_dodge2(width = 0.1),
+                 size = 1.2) +
+  geom_pointrange(data = allMA.mean.res, 
+                  aes(y = estimate, 
+                      x = Response, 
+                      ymin = lowerPR, 
+                      ymax = upperPR,
+                      shape = fct_rev(Overall_estimate)),
+                  position = ggplot2::position_dodge2(width = 0.1),
+                  fatten = 6) +
+  facet_grid(fct_rev(metrics)~., space = "free", scales = "free", switch = "y") +
+  theme(legend.position = "bottom",
+        axis.text.y = element_text(angle = 90, 
+                                   hjust = 0.5, 
+                                   size = 12)) +
+  ggtitle("Meta-analysis of mean") +
+  scale_shape_discrete("Overall estimate")
+
+
+allMa.var.df <- 
+  bind_rows(
+    list(
+      'Pest density' = mResults_PD.Var.int$data,
+      'Parasitism rate' = mResults_ParR.Var.int$data,
+      'Yield' = mResults_ParR.Var.int$data,
+      'Parasitoid abundance' = mResults_ParR.Var.int$data
+    ),
+    .id = "Response"
+  ) %>%
+  mutate(Response = fct_rev(fct_relevel(Response,
+                                        c("Parasitoid abundance",
+                                          "Parasitism rate",
+                                          "Pest density",
+                                          "Yield")))) %>%
+  mutate(metrics = "Variance (lnCVR)")
+
+allMA.var.res <- 
+  bind_rows(
+    list(
+      'Pest density' = mResults_PD.Var.int$mod_table %>%
+        mutate(Estimate = "Unadjusted"),
+      'Parasitism rate' = mResults_ParR.Var.int$mod_table %>%
+        mutate(Estimate = "Unadjusted"),
+      'Yield' = mResults_Yield.Var.int$mod_table %>%
+        mutate(Estimate = "Unadjusted"),
+      'Parasitoid abundance' = mResults_ParAb.Var.postSA.Adj
+    ),
+    .id = "Response"
+  )  %>%
+  group_by(Response) %>%
+  mutate(Overall_estimate = ifelse(n() > 1 & Estimate == "Unadjusted",
+                                   "Unadjusted (Evidence for pb)",
+                                   "Unadjusted (No evidence for pb) \nor Adjusted (Evidence for pb)"))
+
+final_plot_var <- 
+  allMa.var.df %>%
+  ggplot() +
+  ggbeeswarm::geom_quasirandom(
+    aes(y = yi, x = Response, size = 1/sqrt(vi), 
+        colour = Response, fill = Response),
+    alpha = 0.6) +
+  geom_hline(yintercept = 0, lty = "dashed") +
+  xlab(NULL) +
+  ylab("lnCVR") +
+  coord_flip() +
+  guides(fill = "none",
+         colour = "none") +
+  geom_linerange(data = allMA.var.res, 
+                 aes( 
+                   x = Response, 
+                   ymin = lowerCL, 
+                   ymax = upperCL),
+                 position = ggplot2::position_dodge2(width = 0.1),
+                 size = 1.2) +
+  geom_pointrange(data = allMA.var.res, 
+                  aes(y = estimate, 
+                      x = Response, 
+                      ymin = lowerPR, 
+                      ymax = upperPR,
+                      shape = fct_rev(Overall_estimate)),
+                  position = ggplot2::position_dodge2(width = 0.1),
+                  fatten = 6)  +
+  theme(legend.position = "bottom",
+        axis.text.y = element_blank()) +
+  facet_grid(metrics~., space = "free", scales = "free", switch = "y") +
+  ggtitle("Meta-analysis of variance") +
+  scale_shape_discrete("Overall estimate") +
+  scale_y_continuous(minor_breaks = seq(-3, 2, by = 1))
+
+final_plot <- 
+  ggpubr::ggarrange(ggpubr::ggarrange(final_plot_mean + 
+                                        guides(shape = "none") +
+                                        theme(legend.position.inside = c(1, 0),
+                                              legend.justification.inside = c(1, 0),
+                                              legend.position = "inside",
+                                              legend.direction="horizontal",
+                                              legend.text = element_text(
+                                                size = 6
+                                              )) +
+                                        labs(size = "Precision") +
+                                        scale_size_continuous(breaks = c(10, 30, 50)), 
+                                      final_plot_var + 
+                                        guides(shape = "none") +
+                                        theme(legend.position.inside = c(1, 0),
+                                              legend.justification.inside = c(1, 0),
+                                              legend.position = "inside",
+                                              legend.direction="horizontal",
+                                              legend.text = element_text(
+                                                size = 6
+                                              )) +
+                                        labs(size = "Precision")+
+                                        scale_size_continuous(breaks = c(1, 3, 5)),
+                                      widths = c(25, 24)
+  ),
+  get_legend(final_plot_var)[[1]][[2]],
+  ncol = 1,
+  heights = c(20, 1)) +
+  theme(panel.background = element_rect(fill='white'))
+
+
+# To save the figure again, set save_figs to TRUE
+if(save_figs) ggsave(plot = final_plot,
+                     filename = "Outputs/Figures/final_fig_meta.png",
+                     width = 24,
+                     height = 20,
+                     unit = "cm")
+```
+
+![Figure S63. Final plot summarizing all results from meta-analyses.](Outputs/Figures/final_fig_meta.png)
+
+### 6.6.2 Final table
+
+Table S22 summarises results generated by meta-analyses: AIC values of all models with or without moderators, significance values of comparison between both models (likelihood-ratio tests), overall effect of sugar presence along with their *p-value* in the intercept-only model, and finally heterogeneity of the intercept-only model (*i.e* between and within-study variance not due to sampling error, Nakagawa et al. 2023).
+
+```{r Final table}
+  # check esSumm() and esFinalTable() for custom function description
+meta.finalTable <- esFinalTable(c("PD", "ParAb", "ParR", "Yield"))
+meta.finalTable %>% mutate(across(where(is.numeric), ~round(., 2))) %>% 
+  kable(caption = "Table S22. Summary of all results produced by meta-analyses.")
+```
+
+
+# 7. Descriptive analysis of variables not included in meta-anaysis
+
+Remember that we did not have sufficient data for a meta-analysis of some variables. However, we can still examine the distribution of the corresponding effect sizes (at least *lnRR*) on Fig. S64.
+
+```{r Descriptive analysis of other variables, fig.cap = "Figure S64. Descriptive analysis of effect size values (lnRR) of variables not included in the meta-analyses.", out.width = "100%"}
+otherVar.dat <- meta.tab %>%
+  filter(!Variable %in% c('Pest_density', 'Parasitoid_abundance',
+                        'Parasitism_rate', 'Yield')) %>% 
+  mutate(Var_aggregated =
+           case_when(
+             
+             Variable %in% c("Parasitoid_longevity", "Parasitoid_fecundity", "Sex_ratio") ~ 
+               "Life history traits",
+             
+             Variable %in% c("Parasitoid_feeding", "Parasitoid_nectar_feeding") ~ 
+               "Sugar feeding",
+             
+             Variable %in% c("Parasitoid_diversity", "Trophic_link") ~ 
+               "Diversity",
+             
+             Variable %in% c('Pest_damage') ~ 'Pest damage',
+             
+             .default = Variable
+           ))
+
+ggplot(otherVar.dat,
+       aes(y = Var_aggregated,
+           x = lnRR_yi,
+           size = 1/(lnRR_sei),
+           colour = Variable)) +
+  geom_jitter() + 
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  facet_grid(Var_aggregated~., space = "free", scale = "free") +
+  ylab(NULL) +
+  xlab("Mean difference effect size (lnRR)") +
+  ggtitle("Effect size (lnRR) for other variables related to parasitoids") +
+  scale_size_continuous("Precision (1/SE)") + 
+  theme(strip.text.y = element_blank())
+```
+
+# 8. Bibliography

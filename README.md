@@ -4,12 +4,12 @@ This is the script accompanying the paper "Does additional sugars in the field i
 
 ## Data availability
 
-All data and associated metadata can be found on the associated [OSF project](https://osf.io/uk765/). Note that you do not need to download it to run the scripts, the data will be downloaded automatically.
+All the data and associated metadata can be found in the relevant OSF project. Please note that you do not need to download the data to run the scripts; it will be downloaded automatically.
 
 ## Code execution
 
-To reproduce analyses, you just need to open the R project `Parasitoid_sugar_meta_analysis.Rproj` in the main folder. If you want to work on the script directly you can then launch either `R/main_script.R`. For a more detailed version, with additional comments and
-guidance at each step, you can launch `complete_analysis.Rmd` in the main folder. This will reproduce the Supplementary Material 2 .pdf file going along the paper (insert link later).
+To reproduce analyses, you just need to open the R project `Parasitoid_sugar_meta_analysis.Rproj` in the main folder. To work on the script directly, you can then launch `R/main_script.R`. For a more detailed version, with additional comments and
+guidance at each step, you can launch `complete_analysis.Rmd` in the main folder. This will reproduce the Supplementary Material 2 `.pdf` file accompanying the paper (insert link later).
 
 ## Session information
 

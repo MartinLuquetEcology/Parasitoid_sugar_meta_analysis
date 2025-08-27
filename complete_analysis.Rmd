@@ -2369,9 +2369,9 @@ meta.ParAb.Var.modResultsAdjPb
 
 ### 6.3.3 Final plot for the meta-analysis of parasitoid abundance
 
-We can now plot the final output of parasitoid abundance meta-analysis just below (Figure S61):
+We can now plot the final output of parasitoid abundance meta-analysis just below (Fig. S62):
 
-```{r ParAb Final plot, fig.cap = "Figure S61. Final plot for the meta-analysis of parasitoid abundance."}
+```{r ParAb Final plot, fig.cap = "Figure S62. Final plot for the meta-analysis of parasitoid abundance."}
 
 
 meta.ParAb.modResultsAdjPb <-
@@ -2665,9 +2665,9 @@ meta.ParR.Var.modResultsAdjPb
 
 ### 6.4.3 Final plot for the meta-analysis of parasitism rate
 
-We can now plot the final output of parasitism rate meta-analysis just below (Fig. 61):
+We can now plot the final output of parasitism rate meta-analysis just below (Fig. S63):
 
-```{r ParR Final plot, plot.cap = "Figure S61. Final plot for the meta-analysis of parasitism rate."}
+```{r ParR Final plot, fig.cap = "Figure S63. Final plot for the meta-analysis of parasitism rate."}
 
 meta.ParR.modResultsAdjPb <-
   ggpubr::ggarrange(meta.ParR.Mean.modResultsAdjPb + 
@@ -2975,9 +2975,9 @@ meta.Yield.Var.modResultsAdjPb
 
 ### 6.5.3 Final plot for the meta-analysis of yield
 
-We can now plot the final output of yield meta-analysis just below (Fig. 61):
+We can now plot the final output of yield meta-analysis just below (Fig. S64):
 
-```{r Yield Final plot, plot.cap = "Figure S61. Final plot for the meta-analysis of yield."}
+```{r Yield Final plot, figt.cap = "Figure S64. Final plot for the meta-analysis of yield."}
 
 meta.Yield.modResultsAdjPb <-
   ggpubr::ggarrange(meta.Yield.Mean.modResultsAdjPb + 
@@ -2998,7 +2998,7 @@ meta.Yield.modResultsAdjPb
 
 ### 6.6.1 Final plot
 
-We make the final plot summarizing all results produced above that will be shown in the paper (Fig. S63):
+We make the final plot summarizing all results produced above that will be shown in the paper (Fig. S65):
 
 ```{r Final plot}
 allMa.mean.df <- 
@@ -3189,7 +3189,7 @@ if(save_figs) ggsave(plot = final_plot,
                      unit = "cm")
 ```
 
-![Figure S63. Final plot summarizing all results from meta-analyses.](Outputs/Figures/final_fig_meta.png)
+![Figure S65. Final plot summarizing all results from meta-analyses.](Outputs/Figures/final_fig_meta.png)
 
 ### 6.6.2 Final table
 
@@ -3205,9 +3205,9 @@ meta.finalTable %>% mutate(across(where(is.numeric), ~round(., 2))) %>%
 
 # 7. Descriptive analysis of variables not included in meta-anaysis
 
-Remember that we did not have sufficient data for a meta-analysis of some variables. However, we can still examine the distribution of the corresponding effect sizes (at least *lnRR*) on Fig. S64.
+Remember that we did not have sufficient data for a meta-analysis of some variables. However, we can still examine the distribution of the corresponding effect sizes (at least *lnRR*) on Fig. S66.
 
-```{r Descriptive analysis of other variables, fig.cap = "Figure S64. Descriptive analysis of effect size values (lnRR) of variables not included in the meta-analyses.", out.width = "100%"}
+```{r Descriptive analysis of other variables, fig.cap = "Figure S66. Descriptive analysis of effect size values (lnRR) of variables not included in the meta-analyses.", out.width = "100%"}
 otherVar.dat <- meta.tab %>%
   filter(!Variable %in% c('Pest_density', 'Parasitoid_abundance',
                         'Parasitism_rate', 'Yield')) %>% 

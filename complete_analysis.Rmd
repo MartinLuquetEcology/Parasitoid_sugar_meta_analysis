@@ -35,7 +35,7 @@ This supplementary material provides a step by step description of the methodolo
 
 The analysis presented here follows the identification of papers suitable for systematic review and meta-analysis described in the Supplementary Material 1.
 
-Please note that this is intended as a living document. While the version submitted as an appendix to the paper will not change, the online version may be updated to improve the analysis description or correct mistakes (check the [GitHub](https://github.com/MartinLuquetEcology/Parasitoid_sugar_meta_analysis) repository).
+Please note that this is intended as a living document. While the version submitted as an appendix to the paper will not change, the online version may be updated to improve the analysis description (check the [GitHub](https://github.com/MartinLuquetEcology/Parasitoid_sugar_meta_analysis) repository).
 
 This document was greatly inspired from the supplementary material produced by J. Bishop and S. Nakagawa along with their paper *Quantifying crop pollinator dependence and its heterogeneity using multi-level meta-analysis* published in 2021 in the Journal of Applied Ecology (https://doi.org/10.1111/1365-2664.13830). We would like to thank them here for the inspiration.
 
@@ -98,7 +98,9 @@ pacman::p_load(
     # Meta-analysis
   metafor, orchaRd, 
     # Graphics
-  ggpubr, scales, ggtext, maps, ggnewscale
+  ggpubr, scales, ggtext, maps, ggnewscale,
+    # Tables
+  kableExtra
   )
 
 # We'll use some custom functions, we load them from here
@@ -119,7 +121,7 @@ if(save_session_info) {
 
 ```
 
-Then, we load the data. Note that the data are downloaded directly from the [Open Science Framework project](https://osf.io/uk765/?view_only=c61723dcf2e245d39d5462dc8f799d96 ) corresponding to the paper (it will be updated if the dataset is changed).
+Then, we load the data. Note that the data are downloaded directly from the [Open Science Framework project](https://osf.io/uk765/?view_only=c61723dcf2e245d39d5462dc8f799d96) corresponding to the paper (it will be updated if the dataset is changed).
 
 ```{r Data}
 
@@ -178,7 +180,7 @@ full.table %>%
   summarise()
 ```
 
-In this analysis we will work at different nested levels (the papers, the experiments the paper, the seasons with the experiments, the effect sizes within the seasons). Thus, for convenience, we generate several data subsets corresponding to each of these levels.
+In this analysis we will work at different nested levels (the papers, the experiments within papers, the seasons with the experiments, the effect sizes within the seasons). Thus, for convenience, we generate several data subsets corresponding to each of these levels.
 
 ```{r Data subsets}
 
@@ -570,7 +572,14 @@ full.table.ma %>%
   filter(Pest_order == "Various") %>%
   group_by(sh_stud, Pest_order, Pest_species_detail) %>%
   summarise() %>%
-  kable(caption = "Table S6. Cases when responses of multiple host orders were studied in the same experiment as a single response.")
+  kable(caption = 
+"Table S6. Cases when responses of multiple host orders were studied in the same experiment as a single response.") %>%
+  kableExtra::kable_styling(
+    latex_options = c("scale_down", "hold_position"),
+    position = "center",
+  full_width = FALSE
+  ) %>%
+kableExtra::column_spec(3, width = "10cm") 
 
 ```
 We can now look into more details at what host species wee mainly studied. Figures S11 and S12 and Table S7 and S8 show the number of cases when a given species was studied on its own, *i.e.* when specific measurements were made on that species (which represent the majority of cases). Table S9 shows the number of cases when measurements were made on given species when their response were evaluated in pools (example: several aphid species were identified but "aphid density" was evaluated as a single measurement)
@@ -869,7 +878,7 @@ unlist(str_split(pooled_species_para$Parasitoid_species_detail, ",\\s*")) %>%
 
 ### 3.2.4 Nectar-producing plants
 
-We can also have a deeper look into the features of nectar plants that were used as food sources in the selected experiments. Figure S17 shows how nectar plants were managed to provide nectar in experiments. Figure S18 shows the main reasons why authors selected particular nectar plant species. Please refer to the [variable description file](https://osf.io/fuda5) on the project repository for a deeper understanding of these figures. Figure S19 shows the level of plant diversity used in experiments. Figures S20 and S21 show the plant species that were used as a way to provide nectar, with details shown in Table S16 and S17, for plants that were used a sole food source. Figure S22 and provide more details about plants that were used in nectar-producing plant mixes: note however that these mixes were not always designed to provide nectar only and thus could also include plant species that do not produce nectar.
+We can also have a deeper look into the features of nectar plants that were used as food sources in the selected experiments. Figure S17 shows how nectar plants were managed to provide nectar in experiments. Figure S18 shows the main reasons why authors selected particular nectar plant species. Please refer to the [variable description file](https://osf.io/fuda5) on the project repository for a deeper understanding of these figures. Figure S19 shows the level of plant diversity used in experiments. Figures S20 and S21 show the plant species that were used as a way to provide nectar, with details shown in Table S16 and S17, for plants that were used a sole food source. Fig. S22 and provide more details about plants that were used in nectar-producing plant mixes: note however that these mixes were not always designed to provide nectar only and thus could also include plant species that do not produce nectar.
 
 ```{r Nectar-producing plant level table}
 
@@ -1026,7 +1035,7 @@ all.nectar.plants %>%
        x = NULL,
        y = NULL) +
   scale_x_discrete(labels = italicsGraph) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
 ```
 
 ### 3.2.5 Artificial sugar sources
@@ -1151,7 +1160,7 @@ ready.tab$year.c <- as.numeric(scale(ready.tab$Publication_year, scale = F))
 
 ## 5.1 Number of effect sizes
 
-Our data is now ready to compute effect sizes. Before doing so, let's look at how many effect sizes we will obtain for each variable. Figure S25 and Table S18 show the total number of effect sizes for each variable. Figure S26 shows how many effect sizes will be available for each moderator level combination (sugar source type * spatial disposition). We can also see how many of these effect sizes can be computed from data extracted in papers or sent by authors in Table S19.
+Our data is now ready to compute effect sizes. Before doing so, let's look at how many effect sizes we will obtain for each variable. Fig. S25 and Table S18 show the total number of effect sizes for each variable. Figure S26 shows how many effect sizes will be available for each moderator level combination (sugar source type * spatial disposition). We can also see how many of these effect sizes can be computed from data extracted in papers or sent by authors in Table S19.
 
 ```{r Number of effect sizes, fig.cap="Figure S25. Number of effect sizes that can be computed for each extracted variable."}
 
@@ -1197,7 +1206,7 @@ We can now compute effect sizes for each treatment-control comparison. As detail
 
 tab.es <- 
   ready.tab %>%
-    ## Hedge's D (sensu Nakagawa et al. 2007)
+    ## Hedges' D (sensu Nakagawa et al. 2007)
   metafor::escalc(measure = "SMD",
          m1i = tmt_Mean,
          m2i = ctrl_Mean,
@@ -1208,7 +1217,7 @@ tab.es <-
          data = ready.tab
          ) %>% 
   metafor::summary.escalc() %>%
-  rename_with(~ paste0("HedgeD_", .), .cols = (ncol(.) - 6):ncol(.)) %>%
+  rename_with(~ paste0("HedgesD_", .), .cols = (ncol(.) - 6):ncol(.)) %>%
     ##lnRR
   metafor::escalc(measure = "ROM",
          m1i = tmt_Mean,
@@ -1242,11 +1251,11 @@ tab.es <-
 
 ```
 
-Note that the computation of each effect size metrics generate missing values, depending on data availability and calculation requirements (respectively 10 for Hedge's D, 23 for lnRR and 204 for lnCVR, see main script and below for details). We can look at the distribution of these missing values depending on the values of the original data in Fig.S27 to S29.
+Note that the computation of each effect size metrics generate missing values, depending on data availability and calculation requirements (respectively 10 for *Hedges' D*, 23 for *lnRR* and 204 for *lnCVR*, see main script and below for details). We can look at the distribution of these missing values depending on the values of the original data in Fig. S27 to S29. In these forest plots, we can see for each case of a particular variable measurement in a given paper-experiment-season combination where effect sizes could not be computed, the value of the corresponding treatment and control values for that variable (see the [main data file](https://osf.io/7sfgn?view_only=c61723dcf2e245d39d5462dc8f799d96) for the exact description of each case). As we can see, for effect sizes on the mean (*Hedges' D*, *lnRR*), this mainly concerns cases where the treatment and/or the control mean and/or variance values are null (which is logical given how they are computed, see Nakagawa et al. 2007). For *lnCVR*, it is more variable and concerns more cases. Many of them are cases where standard deviation values are null for at least the control or the treatment, which prevents computing the corresponding *lnCVR*.
 
-```{r Missing Hedges G, fig.cap = "Figure S27. Cases for which Hedge's G could not be computed, along with according and control treatment values."}
+```{r Missing Hedges D, fig.cap = "Figure S27. Cases for which Hedges' D could not be computed, along with according control and treatment values."}
 tab.es %>%
-  filter(if_any(starts_with("HedgeD"), is.na)) %>% 
+  filter(if_any(starts_with("HedgesD"), is.na)) %>% 
   pivot_longer(
     cols = c(ctrl_Mean, ctrl_SE, tmt_Mean, tmt_SE),
     names_to = c("Cond", ".value"),
@@ -1256,12 +1265,12 @@ tab.es %>%
   geom_pointrange(aes(xmin = Mean + SE, xmax = Mean - SE)) +
   ylab(NULL) +
   xlab("Mean value (+/- SE)") +
-  ggtitle("Cases for which Hedge's G could not be computed") +
+  ggtitle("Cases for which Hedges' D \ncould not be computed") +
   scale_color_discrete("Condition", labels = c("Control", "Treatment"))
 
 ```
 
-```{r Missing lnRR, fig.cap = "Figure S28. Cases for which lnRR could not be computed, along with according and control treatment values."}
+```{r Missing lnRR, fig.cap = "Figure S28. Cases for which lnRR could not be computed, along with according  control and treatment values."}
 tab.es %>%
   filter(if_any(starts_with("lnRR"), is.na)) %>% 
   pivot_longer(
@@ -1273,12 +1282,12 @@ tab.es %>%
   geom_pointrange(aes(xmin = Mean + SE, xmax = Mean - SE)) +
   ylab(NULL) +
   xlab("Mean value (+/- SE)") +
-  ggtitle("Cases for which lnRR could not be computed") +
+  ggtitle("Cases for which lnRR \ncould not be computed") +
   scale_color_discrete("Condition", labels = c("Control", "Treatment"))
 
 ```
 
-```{r Missing lnCVR, fig.cap = "Figure S29. Cases for which lnCVR could not be computed, along with according and control treatment values."}
+```{r Missing lnCVR, fig.cap = "Figure S29. Cases for which lnCVR could not be computed, along with according  control and treatment values."}
 tab.es %>%
   filter(if_any(starts_with("lnCVR"), is.na)) %>% 
   pivot_longer(
@@ -1292,62 +1301,62 @@ tab.es %>%
   xlab("Mean value (+/- SE)") +
   ggtitle("Cases for which lnCVR could not be computed") +
   scale_color_discrete("Condition", labels = c("Control", "Treatment")) +
-  theme(axis.text.y = element_text(size = 5))
+  theme(axis.text.y = element_text(size = 2))
 ```
 
 ## 5.3 Effect size distribution
 
 Now we can have a first look at the distribution of effect sizes for each variable in Fig. S30 to S41. Note that meta-analyses usually assume normality of residuals (Koricheva et al. 2014, Nakagawa et al. 2023b), but deviation from normality in raw effect sizes may be due to moderators. We will have to be careful the distribution of residuals in each meta-analytical model we will fit. To evaluate the distribution of effect sizes we use the custom function `plotES()`.
 
-```{r Prate HedgeD distribution, fig.cap = "Figure S30. Distribution of Hedge's D values for parasitism rate."}
-plotES(tab.es, "Parasitism_rate", "HedgeD")
+```{r Prate HedgesD distribution, fig.cap = "Figure S30. Distribution of Hedges' D values for parasitism rate. Tmt_sugar corresponds to the sugar treatment applied in a given paper*experiment*season. AS stands for 'Artificial Sugars.'"}
+plotES(tab.es, "Parasitism_rate", "HedgesD")
 ```
 
-```{r Prate lnRR distribution, fig.cap = "Figure S31. Distribution of log Response Ratio values for parasitism rate."}
+```{r Prate lnRR distribution, fig.cap = "Figure S31. Distribution of log Response Ratio values for parasitism rate. Tmt_sugar corresponds to the sugar treatment applied in a given paper*experiment*season. AS stands for 'Artificial Sugars.'"}
 plotES(tab.es, "Parasitism_rate", "lnRR")
 ```
 
-```{r ParAb HedgeD distribution, fig.cap = "Figure S32. Distribution of Hedge's D values for parasitoid abundance."}
-plotES(tab.es, "Parasitoid_abundance", "HedgeD")
+```{r ParAb HedgesD distribution, fig.cap = "Figure S32. Distribution of Hedges' D values for parasitoid abundance. Tmt_sugar corresponds to the sugar treatment applied in a given paper*experiment*season. AS stands for 'Artificial Sugars.'"}
+plotES(tab.es, "Parasitoid_abundance", "HedgesD")
 ```
 
-```{r ParAb lnRR distribution, fig.cap = "Figure S33. Distribution of log Response Ratio values for parasitoid abundance."}
+```{r ParAb lnRR distribution, fig.cap = "Figure S33. Distribution of log Response Ratio values for parasitoid abundance. Tmt_sugar corresponds to the sugar treatment applied in a given paper*experiment*season. AS stands for 'Artificial Sugars.'"}
 plotES(tab.es, "Parasitoid_abundance", "lnRR")
 ```
 
-```{r PestD HedgeD distribution, fig.cap = "Figure S34. Distribution of Hedge's D values for pest density."}
-plotES(tab.es, "Pest_density", "HedgeD")
+```{r PestD HedgesD distribution, fig.cap = "Figure S34. Distribution of Hedges' D values for pest density. Tmt_sugar corresponds to the sugar treatment applied in a given paper*experiment*season. AS stands for 'Artificial Sugars.'"}
+plotES(tab.es, "Pest_density", "HedgesD")
 ```
 
-```{r PestD lnRR distribution, fig.cap = "Figure S35. Distribution of log Response Ratio values for pest density."}
+```{r PestD lnRR distribution, fig.cap = "Figure S35. Distribution of log Response Ratio values for pest density. Tmt_sugar corresponds to the sugar treatment applied in a given paper*experiment*season. AS stands for 'Artificial Sugars.'"}
 plotES(tab.es, "Pest_density", "lnRR")
 ```
 
-```{r Yield HedgeD distribution, fig.cap = "Figure S36. Distribution of Hedge's D values for yield."}
-plotES(tab.es, "Yield", "HedgeD")
+```{r Yield HedgesD distribution, fig.cap = "Figure S36. Distribution of Hedges' D values for yield. Tmt_sugar corresponds to the sugar treatment applied in a given paper*experiment*season. AS stands for 'Artificial Sugars.'"}
+plotES(tab.es, "Yield", "HedgesD")
 ```
 
-```{r Yield lnRR distribution, fig.cap = "Figure S37. Distribution of log Response Ratio values for yield."}
+```{r Yield lnRR distribution, fig.cap = "Figure S37. Distribution of log Response Ratio values for yield. Tmt_sugar corresponds to the sugar treatment applied in a given paper*experiment*season. AS stands for 'Artificial Sugars.'"}
 plotES(tab.es, "Yield", "lnRR")
 ```
 
 
-```{r Prate lnCVR distribution, fig.cap = "Figure S38. Distribution of the log Coefficient of Variation Ratio values for parasitism rate."}
+```{r Prate lnCVR distribution, fig.cap = "Figure S38. Distribution of the log Coefficient of Variation Ratio values for parasitism rate. Tmt_sugar corresponds to the sugar treatment applied in a given paper*experiment*season. AS stands for 'Artificial Sugars.'"}
 plotES(tab.es, "Parasitism_rate", "lnCVR")
 ```
 
 
-```{r ParAb lnCVR distribution, fig.cap = "Figure S39. Distribution of the log Coefficient of Variation Ratio values for parasitoid abundance."}
+```{r ParAb lnCVR distribution, fig.cap = "Figure S39. Distribution of the log Coefficient of Variation Ratio values for parasitoid abundance. Tmt_sugar corresponds to the sugar treatment applied in a given paper*experiment*season. AS stands for 'Artificial Sugars.'"}
 plotES(tab.es, "Parasitoid_abundance", "lnCVR")
 ```
 
 
-```{r PestD lnCVR distribution, fig.cap = "Figure S40. Distribution of the log Coefficient of Variation Ratio values for pest density."}
+```{r PestD lnCVR distribution, fig.cap = "Figure S40. Distribution of the log Coefficient of Variation Ratio values for pest density. Tmt_sugar corresponds to the sugar treatment applied in a given paper*experiment*season. AS stands for 'Artificial Sugars.'"}
 plotES(tab.es, "Pest_density", "lnCVR")
 ```
 
 
-```{r Yield lnCVR distribution, fig.cap = "Figure S41. Distribution of the log Coefficient of Variation Ratio values for yield."}
+```{r Yield lnCVR distribution, fig.cap = "Figure S41. Distribution of the log Coefficient of Variation Ratio values for yield. Tmt_sugar corresponds to the sugar treatment applied in a given paper*experiment*season. AS stands for 'Artificial Sugars.'"}
 plotES(tab.es, "Yield", "lnCVR")
 ```
 
@@ -2051,7 +2060,7 @@ meta.PD.Var.modResultsAdjPb <- plotAdjEst("PD", "Var", "lnCVR", "Pest density")
 
 We can make the final plot for the meta-analysis of sugar presence on pest density just below, encompassing mean and variance (Fig. S62). This well help us building our final figure at the end of the document.
 
-```{r PestD Final plot, plot.cap = "Figure S62. Final plot for the meta-analysis of pest density."}
+```{r PestD Final plot, fig.cap = "Figure S62. Final plot for the meta-analysis of pest density."}
 meta.PD.modResultsAdjPb <-
 ggpubr::ggarrange(meta.PD.Mean.modResultsAdjPb + 
             ggtitle("Meta-analysis of the effect on pest density", "Mean") + 
@@ -2360,9 +2369,9 @@ meta.ParAb.Var.modResultsAdjPb
 
 ### 6.3.3 Final plot for the meta-analysis of parasitoid abundance
 
-We can now plot the final output of parasitoid abundance meta-analysis just below (Fig. 61):
+We can now plot the final output of parasitoid abundance meta-analysis just below (Figure S61):
 
-```{r ParAb Final plot, plot.cap = "Figure S61. Final plot for the meta-analysis of parasitoid abundance."}
+```{r ParAb Final plot, fig.cap = "Figure S61. Final plot for the meta-analysis of parasitoid abundance."}
 
 
 meta.ParAb.modResultsAdjPb <-

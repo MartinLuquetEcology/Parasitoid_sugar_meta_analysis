@@ -285,7 +285,10 @@ expTmt.table %>%
 tmt_distrib
 
     # Systematic map:
+      # As there is only one study for honeydew
+      # It becomes uneligible for meta-analysis
 tmt_distrib %>%
+  mutate(Nb_included = ifelse(Tmt_sugar_name == "Honeydew", 0, Nb_included)) %>%
   ungroup() %>%
   complete(Tmt_spatial, Tmt_sugar_name, fill = list(Nb_total = 0,
                                                     Nb_included = 0)) %>%

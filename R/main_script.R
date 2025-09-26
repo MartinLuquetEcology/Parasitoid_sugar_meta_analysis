@@ -2831,7 +2831,7 @@ final_plot
 
   # check esSumm() and esFinalTable() for custom function description
 meta.finalTable <- esFinalTable(c("PD", "ParAb", "ParR", "Yield"))
-meta.finalTable
+meta.finalTable %>% mutate(across(where(is.numeric), ~round(., 2)))
 
 ####################################################################### #
 # 9) Descriptive analysis of variables not included in meta-anaysis #####
@@ -2892,8 +2892,8 @@ ggplot(otherVar.dat,
 
 # Mean : significant effect, no evidence of publication bias (!)
 # Maybe thanks to multiple measures each time
-# lnRR = 0.43
-# That means that on average there are exp(0.43) = 1.5 times more parasitoids
+# lnRR = 0.25
+# That means that on average there are exp(0.25) = 1.3 times more parasitoids
 # When sugar sources are provided
 
 # Variance : publication bias due to decline effect 
@@ -2917,7 +2917,7 @@ ggplot(otherVar.dat,
 # When sugar sources are provided
 
 # Variance: lnRR = 0.17
-# That means that variation is reduced by about 16% (exp(-0.17) = 0.86)
+# That means that variation is reduced by about 16% (exp(-0.17) = 0.84)
 # Note that these are CV so scaled to the mean
 
 # Yield

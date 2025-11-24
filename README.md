@@ -9,7 +9,7 @@ All the data and associated metadata can be found in the relevant OSF project (l
 ## Code execution
 
 To reproduce analyses, you just need to open the R project `Parasitoid_sugar_meta_analysis.Rproj` in the main folder. To work on the script directly, you can then launch `R/main_script.R`. For a more detailed version, with additional comments and
-guidance at each step, you can launch `complete_analysis.Rmd` in the main folder. This will reproduce the Supplementary Material 2 `.pdf` file accompanying the paper (link will be placed here upon the paper's acceptance).
+guidance at each step, you can launch `complete_analysis.Rmd` in the main folder. This will reproduce the Appendix S2 in the `.pdf` file accompanying the paper (link will be placed here upon the paper's acceptance).
 
 ## Session information
 

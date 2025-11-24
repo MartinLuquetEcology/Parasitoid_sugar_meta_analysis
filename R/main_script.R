@@ -24,12 +24,15 @@ if(!require('pacman')) {
   library('pacman') 
 } 
 
-## To install orchaRd
-# library(pacman)
-# devtools::install_github("daniel1noble/orchaRd", ref = "main", force = TRUE)
-# pacman::p_load(devtools, tidyverse, metafor, patchwork, R.rsp, orchaRd, emmeans,
-#               ape, phytools, flextable)
-# from https://daniel1noble.github.io/orchaRd/
+# To install orchaRd
+  # note that it will install devtools as well
+  # from https://daniel1noble.github.io/orchaRd/
+if(!require('orchaRd')) {
+  if(!require('devtools')) install.packages('devtools')
+  devtools::install_github("daniel1noble/orchaRd", ref = "main", force = TRUE)
+  pacman::p_load(devtools, tidyverse, metafor, patchwork, R.rsp, orchaRd, emmeans,
+                 ape, phytools, flextable)
+}
 
 # Load packages
 pacman::p_load(
@@ -1032,20 +1035,6 @@ ready.tab$year.c <- as.numeric(scale(ready.tab$Publication_year, scale = F))
 # Table, by decreasing order
 sort(table(ready.tab$Variable), decreasing = T)
 
-#  Barplot
-es_barplot <- 
-ggplot(ready.tab,aes(y = Variable, fill = Variable)) +
-  geom_bar()+
-  theme(legend.position = "none") + 
-  xlab("Number of effect sizes") + 
-  ylab(NULL) +
-  ggtitle("Number of effect sizes for each variable")
-
-es_barplot
-
-es_barplot +
-  facet_wrap(Tmt_sugar_name~Tmt_spatial)
-
 # How many of the effect sizes were sent by authors?
 ready.tab %>%
   mutate(`Data origin` = ifelse(Data_Origin == "Sent_data", 
@@ -1347,7 +1336,7 @@ anova.rma(meta.PD.Mean.3, meta.PD.Mean.5)
   ## So we can fit our intercept-only model using REML:
 meta.PD.Mean.int <- update(meta.PD.Mean.4, method = 'REML')
 summary(meta.PD.Mean.int)
-mResults_PD.Mean.int <- mod_results(meta.PD.Mean.int, mod = "1", group = "Exp_ID")
+mResults_PD.Mean.int <- orchaRd::mod_results(meta.PD.Mean.int, mod = "1", group = "Exp_ID")
 print(mResults_PD.Mean.int)
 orchard_plot(mResults_PD.Mean.int, xlab = "lnRR") +
   ggtitle("Meta-analysis of pest density mean",
@@ -1363,7 +1352,7 @@ if(profile_random) profile.rma.mv(meta.PD.Mean.int)
   ## This is the intercept-only model. What about moderators?
 meta.PD.Mean.mods <- update(meta.PD.Mean.int, mods = ~ Mod - 1)
 summary(meta.PD.Mean.mods)
-mResults_PD.Mean.mods <- mod_results(meta.PD.Mean.mods, mod = "Mod", group = "Exp_ID")
+mResults_PD.Mean.mods <- orchard::orchaRd::mod_results(meta.PD.Mean.mods, mod = "Mod", group = "Exp_ID")
 print(mResults_PD.Mean.mods)
 orchard_plot(mResults_PD.Mean.mods, xlab = "lnRR") +
   ggtitle("Meta-analysis of pest density mean",
@@ -1503,7 +1492,7 @@ meta.PD.Mean.postSA.int <-
          data = meta.PD.dat.postSA)
 
 mResults_PD.Mean.postSA.int <- 
-  mod_results(meta.PD.Mean.postSA.int, group = "Exp_ID")
+  orchaRd::mod_results(meta.PD.Mean.postSA.int, group = "Exp_ID")
 
 mResults_PD.Mean.postSA.int %>%
   orchard_plot(xlab = "lnRR") +
@@ -1587,11 +1576,11 @@ update(meta.PD.Mean.postSA.int, mods = ~ Exp_type_1 + Distance_category) %>%
   anova(meta.PD.Mean.postSA.int, refit = TRUE)
 
 update(meta.PD.Mean.postSA.int, mods = ~ Exp_type_1 + Distance_category) %>%
-  mod_results(group = "Exp_ID", mod = "Exp_type_1") %>%
+  orchaRd::mod_results(group = "Exp_ID", mod = "Exp_type_1") %>%
   orchard_plot(xlab = "lnRR")
 
 update(meta.PD.Mean.postSA.int, mods = ~ Exp_type_1 + Distance_category) %>%
-  mod_results(group = "Exp_ID", mod = "Distance_category") %>%
+  orchaRd::mod_results(group = "Exp_ID", mod = "Distance_category") %>%
   orchard_plot(xlab = "lnRR")
 
 # Let's also do a sensitivity analysis to the correlation level
@@ -1689,7 +1678,7 @@ AIC(meta.PD.Var.1, meta.PD.Var.2, meta.PD.Var.3,
     ## So we can fit our intercept-only model using REML:
 meta.PD.Var.int.rand <- update(meta.PD.Var.3, method = 'REML')
 summary(meta.PD.Var.int.rand)
-mResults_PD.Var.int <- mod_results(meta.PD.Var.int.rand, mod = "1", group = "Exp_ID")
+mResults_PD.Var.int <- orchaRd::mod_results(meta.PD.Var.int.rand, mod = "1", group = "Exp_ID")
 print(mResults_PD.Var.int)
 orchard_plot(mResults_PD.Var.int, xlab = "lnRR") +
   ggtitle("Meta-analysis of pest density variance",
@@ -1703,7 +1692,7 @@ if(profile_random) profile.rma.mv(meta.PD.Var.int)
       # Doesn't converge so we simplify (no random effect)
 meta.PD.Var.int <- update(meta.PD.Var.int.rand, random = NULL)
 summary(meta.PD.Var.int)
-mResults_PD.Var.int <- mod_results(meta.PD.Var.int, mod = "1", group = "Exp_ID")
+mResults_PD.Var.int <- orchaRd::mod_results(meta.PD.Var.int, mod = "1", group = "Exp_ID")
 print(mResults_PD.Var.int)
 orchard_plot(mResults_PD.Var.int, xlab = "lnRR") +
   ggtitle("Meta-analysis of pest density variance",
@@ -1714,7 +1703,7 @@ orchard_plot(mResults_PD.Var.int, xlab = "lnRR") +
     ## Model with moderators
 meta.PD.Var.mods <- update(meta.PD.Var.int, mods = ~ Mod - 1)
 summary(meta.PD.Var.mods)
-mResults_PD.Var.mods <- mod_results(meta.PD.Var.mods, mod = "Mod", group = "Exp_ID")
+mResults_PD.Var.mods <- orchaRd::mod_results(meta.PD.Var.mods, mod = "Mod", group = "Exp_ID")
 print(mResults_PD.Var.mods)
 orchard_plot(mResults_PD.Var.mods, xlab = "lnCVR") +
   ggtitle("Meta-analysis of pest density variance",
@@ -1846,7 +1835,7 @@ AIC(meta.ParAb.Mean.1, meta.ParAb.Mean.2, meta.ParAb.Mean.3,
   ## So we can fit our intercept-only model using REML:
 meta.ParAb.Mean.int <- update(meta.ParAb.Mean.1, method = 'REML')
 summary(meta.ParAb.Mean.int)
-mResults_ParAb.Mean.int <- mod_results(meta.ParAb.Mean.int, mod = "1", group = "Exp_ID")
+mResults_ParAb.Mean.int <- orchaRd::mod_results(meta.ParAb.Mean.int, mod = "1", group = "Exp_ID")
 print(mResults_ParAb.Mean.int)
 orchard_plot(mResults_ParAb.Mean.int, xlab = "lnRR") +
   ggtitle("Meta-analysis of parasitoid abundance mean",
@@ -1861,7 +1850,7 @@ if(profile_random) profile.rma.mv(meta.ParAb.Mean.int)
   ## Model with moderators
 meta.ParAb.Mean.mods <- update(meta.ParAb.Mean.int, mods = ~ Mod - 1)
 summary(meta.ParAb.Mean.mods)
-mResults_ParAb.Mean.mods <- mod_results(meta.ParAb.Mean.mods, mod = "Mod", group = "Exp_ID")
+mResults_ParAb.Mean.mods <- orchaRd::mod_results(meta.ParAb.Mean.mods, mod = "Mod", group = "Exp_ID")
 print(mResults_ParAb.Mean.mods)
 orchard_plot(mResults_ParAb.Mean.mods, xlab = "lnRR") +
   ggtitle("Meta-analysis of parasitoid abundance mean",
@@ -1952,7 +1941,7 @@ AIC(meta.ParAb.Var.1, meta.ParAb.Var.2, meta.ParAb.Var.3,
   ## So we can fit our intercept-only model using REML:
 meta.ParAb.Var.int <- update(meta.ParAb.Var.1, method = 'REML')
 summary(meta.ParAb.Var.int)
-mResults_ParAb.Var.int <- mod_results(meta.ParAb.Var.int, mod = "1", group = "Exp_ID")
+mResults_ParAb.Var.int <- orchaRd::mod_results(meta.ParAb.Var.int, mod = "1", group = "Exp_ID")
 print(mResults_ParAb.Var.int)
 orchard_plot(mResults_ParAb.Var.int, xlab = "lnCVR") +
   ggtitle("Meta-analysis of parasitoid abundance variance",
@@ -1964,7 +1953,7 @@ if(profile_random) profile.rma.mv(meta.ParAb.Var.int)
   ## Model with moderators
 meta.ParAb.Var.mods <- update(meta.ParAb.Var.int, mods = ~ Mod - 1)
 summary(meta.ParAb.Var.mods)
-mResults_ParAb.Var.mods <- mod_results(meta.ParAb.Var.mods, mod = "Mod", group = "Exp_ID")
+mResults_ParAb.Var.mods <- orchaRd::mod_results(meta.ParAb.Var.mods, mod = "Mod", group = "Exp_ID")
 print(mResults_ParAb.Var.mods)
 orchard_plot(mResults_ParAb.Var.mods, xlab = "lnCVR") +
   ggtitle("Meta-analysis of parasitoid abundance variance",
@@ -2047,14 +2036,14 @@ meta.ParAb.Var.postSA.int <-
   update(meta.ParAb.Var.int, V = vcov.ParAb.lnCVR.05.postSA, 
          data = meta.ParAb.dat.postSA)
 
-mResults_ParAb.Var.postSA.int <- mod_results(meta.ParAb.Var.postSA.int, mod = "1", group = "Exp_ID")
+mResults_ParAb.Var.postSA.int <- orchaRd::mod_results(meta.ParAb.Var.postSA.int, mod = "1", group = "Exp_ID")
 
   # Check for publication bias again: it is still detected
 meta.ParAb.Var.postSA.int.pb <- 
   update(meta.ParAb.Var.int.pb, V = vcov.ParAb.lnCVR.05.postSA, 
          data = meta.ParAb.dat.postSA)
 
-mResults_ParAb.Var.postSA.int.pb <- mod_results(meta.ParAb.Var.postSA.int.pb, mod = "1", group = "Exp_ID")
+mResults_ParAb.Var.postSA.int.pb <- orchaRd::mod_results(meta.ParAb.Var.postSA.int.pb, mod = "1", group = "Exp_ID")
 summary(meta.ParAb.Var.postSA.int.pb)
 
 bubble_plot(meta.ParAb.Var.postSA.int.pb, mod = "year.c", group = "Exp_ID") +
@@ -2135,7 +2124,7 @@ AIC(meta.ParR.Mean.1, meta.ParR.Mean.2, meta.ParR.Mean.3,
   ## So we can fit our intercept-only model using REML:
 meta.ParR.Mean.int <- update(meta.ParR.Mean.4, method = 'REML')
 summary(meta.ParR.Mean.int)
-mResults_ParR.Mean.int <- mod_results(meta.ParR.Mean.int, mod = "1", group = "Exp_ID")
+mResults_ParR.Mean.int <- orchaRd::mod_results(meta.ParR.Mean.int, mod = "1", group = "Exp_ID")
 print(mResults_ParR.Mean.int)
 orchard_plot(mResults_ParR.Mean.int, xlab = "lnRR") +
   ggtitle("Meta-analysis of parasitism rate mean",
@@ -2149,7 +2138,7 @@ if(profile_random) profile.rma.mv(meta.ParR.Mean.int)
   ## Model with moderators
 meta.ParR.Mean.mods <- update(meta.ParR.Mean.int, mods = ~ Mod - 1)
 summary(meta.ParR.Mean.mods)
-mResults_ParR.Mean.mods <- mod_results(meta.ParR.Mean.mods, mod = "Mod", group = "Exp_ID")
+mResults_ParR.Mean.mods <- orchaRd::mod_results(meta.ParR.Mean.mods, mod = "Mod", group = "Exp_ID")
 print(mResults_ParR.Mean.mods)
 orchard_plot(mResults_ParR.Mean.mods, xlab = "lnRR") +
   ggtitle("Meta-analysis of parasitism rate mean",
@@ -2262,7 +2251,7 @@ AIC(meta.ParR.Var.1, meta.ParR.Var.2, meta.ParR.Var.3,
   ## So we can fit our intercept-only model using REML:
 meta.ParR.Var.int <- update(meta.ParR.Var.3, method = 'REML')
 summary(meta.ParR.Var.int)
-mResults_ParR.Var.int <- mod_results(meta.ParR.Var.int, mod = "1", group = "Exp_ID")
+mResults_ParR.Var.int <- orchaRd::mod_results(meta.ParR.Var.int, mod = "1", group = "Exp_ID")
 print(mResults_ParR.Var.int)
 orchard_plot(mResults_ParR.Var.int, xlab = "lnCVR") +
   ggtitle("Meta-analysis of parasitism rate variance",
@@ -2274,7 +2263,7 @@ if(profile_random) profile.rma.mv(meta.ParR.Var.int)
   ## Model with moderators
 meta.ParR.Var.mods <- update(meta.ParR.Var.int, mods = ~ Mod - 1)
 summary(meta.ParR.Var.mods)
-mResults_ParR.Var.mods <- mod_results(meta.ParR.Var.mods, mod = "Mod", group = "Exp_ID")
+mResults_ParR.Var.mods <- orchaRd::mod_results(meta.ParR.Var.mods, mod = "Mod", group = "Exp_ID")
 print(mResults_ParR.Var.mods)
 orchard_plot(mResults_ParR.Var.mods, xlab = "lnCVR") +
   ggtitle("Meta-analysis of parasitism rate variance",
@@ -2402,7 +2391,7 @@ AIC(meta.Yield.Mean.1, meta.Yield.Mean.2, meta.Yield.Mean.3,
   ## So we can fit our intercept-only model using REML:
 meta.Yield.Mean.int.complex <- update(meta.Yield.Mean.4, method = 'REML')
 summary(meta.Yield.Mean.int.complex)
-mResults_Yield.Mean.int <- mod_results(meta.Yield.Mean.int.complex, mod = "1", group = "Exp_ID")
+mResults_Yield.Mean.int <- orchaRd::mod_results(meta.Yield.Mean.int.complex, mod = "1", group = "Exp_ID")
 print(mResults_Yield.Mean.int)
 orchard_plot(mResults_Yield.Mean.int, xlab = "lnRR") +
   ggtitle("Meta-analysis of parasitoid abundance mean",
@@ -2415,7 +2404,7 @@ profile.rma.mv(meta.Yield.Mean.int.complex)
   # Does not converge for Exp.rep: let's keep it simple with model 3
 meta.Yield.Mean.int <- update(meta.Yield.Mean.3, method = 'REML')
 summary(meta.Yield.Mean.int)
-mResults_Yield.Mean.int <- mod_results(meta.Yield.Mean.int, mod = "1", group = "Exp_ID")
+mResults_Yield.Mean.int <- orchaRd::mod_results(meta.Yield.Mean.int, mod = "1", group = "Exp_ID")
 print(mResults_Yield.Mean.int)
 orchard_plot(mResults_Yield.Mean.int, xlab = "lnRR") +
   ggtitle("Meta-analysis of parasitoid abundance mean",
@@ -2429,7 +2418,7 @@ profile.rma.mv(meta.Yield.Mean.int)
   ## Model with moderators
 meta.Yield.Mean.mods <- update(meta.Yield.Mean.int, mods = ~ Mod - 1)
 summary(meta.Yield.Mean.mods)
-mResults_Yield.Mean.mods <- mod_results(meta.Yield.Mean.mods, mod = "Mod", group = "Exp_ID")
+mResults_Yield.Mean.mods <- orchaRd::mod_results(meta.Yield.Mean.mods, mod = "Mod", group = "Exp_ID")
 print(mResults_Yield.Mean.mods)
 orchard_plot(mResults_Yield.Mean.mods, xlab = "lnRR") +
   ggtitle("Meta-analysis of parasitoid abundance mean",
@@ -2556,7 +2545,7 @@ AIC(meta.Yield.Var.1, meta.Yield.Var.2, meta.Yield.Var.3,
 ## So we can fit our intercept-only model using REML:
 meta.Yield.Var.int <- update(meta.Yield.Var.1, method = 'REML')
 summary(meta.Yield.Var.int)
-mResults_Yield.Var.int <- mod_results(meta.Yield.Var.int, mod = "1", group = "Exp_ID")
+mResults_Yield.Var.int <- orchaRd::mod_results(meta.Yield.Var.int, mod = "1", group = "Exp_ID")
 print(mResults_Yield.Var.int)
 orchard_plot(mResults_Yield.Var.int, xlab = "lnCVR") +
   ggtitle("Meta-analysis of parasitoid abundance variance",
@@ -2568,7 +2557,7 @@ if(profile_random) profile.rma.mv(meta.Yield.Var.int)
 ## Model with moderators
 meta.Yield.Var.mods <- update(meta.Yield.Var.int, mods = ~ Mod - 1)
 summary(meta.Yield.Var.mods)
-mResults_Yield.Var.mods <- mod_results(meta.Yield.Var.mods, mod = "Mod", group = "Exp_ID")
+mResults_Yield.Var.mods <- orchaRd::mod_results(meta.Yield.Var.mods, mod = "Mod", group = "Exp_ID")
 print(mResults_Yield.Var.mods)
 orchard_plot(mResults_Yield.Var.mods, xlab = "lnCVR") +
   ggtitle("Meta-analysis of parasitoid abundance variance",

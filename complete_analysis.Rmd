@@ -1,5 +1,5 @@
 ---
-title: "Supporting Information - Does sugar provisioning benefit biological control by parasitoids in agroecosystems? A systematic review and meta analysis"
+title: "Supporting Information - Does sugar provisioning benefit biological control by parasitoids in agroecosystems? A systematic review and meta-analysis"
 subtitle: "Appendix S2 - Complete analysis"
 author: "Martin Luquet, Blas Lavandero, Emmanuel Desouhant, Bruno Jaloux"
 date: "`r format(Sys.time(), '%Y/%m/%d')` - first created on 2025/07/25"
@@ -30,9 +30,9 @@ knitr::opts_chunk$set(echo = TRUE,
 
 # 1. Introduction
 
-This supplementary material provides a step by step description of the methodology we employed in the systematic review and meta-analysis which is the topic of the paper *Does additional sugars in the field improve biological control by parasitoids? A systematic review and meta  analysis*. This is a RMarkDown document displaying all produced outputs, including those that could not be presented in the paper main text.
+This supplementary material provides a step by step description of the methodology we employed in the systematic review and meta-analysis which is the topic of the paper *Does sugar provisioning benefit biological control by parasitoids in agroecosystems? A systematic review and meta-analysis*. This is a RMarkDown document displaying all produced outputs, including those that could not be presented in the paper main text.
 
-The analysis presented here follows the identification of papers suitable for systematic review and meta-analysis described in the Supplementary Material 1.
+The analysis presented here follows the identification of papers suitable for systematic review and meta-analysis described in **Appendix S1**.
 
 Please note that this is intended as a living document. While the version submitted as an appendix to the paper will not change, the online version may be updated to improve the analysis description (check the [GitHub](https://github.com/MartinLuquetEcology/Parasitoid_sugar_meta_analysis) repository).
 

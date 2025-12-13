@@ -1,6 +1,6 @@
 # Parasitoid sugar meta-analysis
 
-This is the script accompanying the paper "Does additional sugars in the field improve biological control by parasitoids? A systematic review and meta analysis". It is now private but will be made public upon papers' acceptance.
+This is the script accompanying the paper ***Does additional sugars in the field improve biological control by parasitoids? A systematic review and meta analysis***. It is now private but will be made public upon papers' acceptance.
 
 ## Data availability
 

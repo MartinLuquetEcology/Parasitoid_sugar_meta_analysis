@@ -9,7 +9,9 @@ profile_random <- FALSE
   # To run sensitivity analyses, set to TRUE
 run_sens_ana <- FALSE
   # To load sensitivity analysis results, set to TRUE
-loadSensAn <- TRUE
+load_sens_an <- TRUE
+  # To save the final table used for meta-analyses, set to TRUE
+save_meta_table <- FALSE
 
 # For reproducibility (jitter, etc.)
 set.seed(177)
@@ -1272,6 +1274,8 @@ tab.es %>%
 meta.tab <- tab.es %>%
   filter(!ES_ID %in% c(272, 415, 503, 504))
 
+if(save_meta_table) write_rds(meta.tab, 'Outputs/meta_tab.rds')
+
   ## ---------------------------------- #
   ###### '8A) Pest density ----
 
@@ -1456,7 +1460,7 @@ if(run_sens_ana) {
 }
 
   # To load save analyses, set to TRUE
-if(loadSensAn) {
+if(load_sens_an) {
   
   readSA("PD", "Mean", "ESID") +
     ggtitle("Sensitivity analysis of Pest density - Mean effect",
@@ -1545,7 +1549,7 @@ if(run_sens_ana) {
   
 }
 
-if(loadSensAn) {
+if(load_sens_an) {
   
   readSA("PD", "Mean", "PaperID", postSA = T) +
     ggtitle("Sensitivity analysis of Pest density - Mean effect",

@@ -10,7 +10,11 @@ profile_random <- FALSE
 run_sens_ana <- FALSE
   # To load sensitivity analysis results, set to TRUE
 load_sens_an <- TRUE
-  # To save the final table used for meta-analyses, set to TRUE
+  # These objects will be needed to generate figures
+    # To save them, set to TRUE
+save_paper_table <- FALSE
+save_exp_tmt_table <- FALSE
+save_tmt_distrib <- FALSE
 save_meta_table <- FALSE
 
 # For reproducibility (jitter, etc.)
@@ -129,6 +133,9 @@ paper.table <- full.table %>%
   group_by(Included, .add = T) %>%
   summarise()
 
+  # saving for figures
+if(save_paper_table) write_rds(paper.table, 'Outputs/paper_tab.rds')
+
 ### Study-wise dataset
 study.table <- full.table %>%
   group_by(sh_stud, Study_ID) %>%
@@ -167,6 +174,8 @@ expTmt.table <- full.table %>%
   group_by(Included, FirstY, .add = T) %>%
   summarise()
 
+  # saving for figures
+if(save_exp_tmt_table) write_rds(expTmt.table, 'Outputs/exp_tmt_tab.rds')
 
 ### Experiment-season
 expSeas.table <- full.table %>%
@@ -279,7 +288,7 @@ ggplot() +
   ###### '4D) Distribution of experiments over treatments ----
 
     # Quick overview:
-tmt_distrib <- 
+tmt.distrib <- 
 expTmt.table %>%
   group_by(Tmt_sugar_name, Tmt_spatial) %>%
   mutate(Nb_total = n()) %>%
@@ -287,12 +296,22 @@ expTmt.table %>%
   group_by(Nb_total, .add = T) %>%
   summarise(Nb_included = n())
 
-tmt_distrib
+tmt.distrib
+
+  # Adding missing cases
+tmt.distrib.complete <- 
+tmt.distrib %>%
+  # As there is only one study for honeydew
+  # It becomes uneligible for meta-analysis
+  mutate(Nb_included = ifelse(Tmt_sugar_name == "Honeydew", 0, Nb_included)) %>%
+  ungroup %>%
+  complete(Tmt_spatial, Tmt_sugar_name, fill = list(Nb_total = 0,
+                                                    Nb_included = 0))
+
+if(save_tmt_distrib) write_rds(tmt.distrib.complete, 'Outputs/tmt_distrib_complete.rds')
 
     # Systematic map:
-      # As there is only one study for honeydew
-      # It becomes uneligible for meta-analysis
-tmt_distrib %>%
+tmt.distrib.complete %>%
   mutate(Nb_included = ifelse(Tmt_sugar_name == "Honeydew", 0, Nb_included)) %>%
   ungroup() %>%
   complete(Tmt_spatial, Tmt_sugar_name, fill = list(Nb_total = 0,
@@ -1274,6 +1293,7 @@ tab.es %>%
 meta.tab <- tab.es %>%
   filter(!ES_ID %in% c(272, 415, 503, 504))
 
+  # Saving this for figures
 if(save_meta_table) write_rds(meta.tab, 'Outputs/meta_tab.rds')
 
   ## ---------------------------------- #

@@ -16,6 +16,7 @@ save_paper_table <- FALSE
 save_exp_tmt_table <- FALSE
 save_tmt_distrib <- FALSE
 save_meta_table <- FALSE
+save_meta_results <- TRUE
 
 # For reproducibility (jitter, etc.)
 set.seed(177)
@@ -1376,7 +1377,7 @@ if(profile_random) profile.rma.mv(meta.PD.Mean.int)
   ## This is the intercept-only model. What about moderators?
 meta.PD.Mean.mods <- update(meta.PD.Mean.int, mods = ~ Mod - 1)
 summary(meta.PD.Mean.mods)
-mResults_PD.Mean.mods <- orchard::orchaRd::mod_results(meta.PD.Mean.mods, mod = "Mod", group = "Exp_ID")
+mResults_PD.Mean.mods <- orchaRd::mod_results(meta.PD.Mean.mods, mod = "Mod", group = "Exp_ID")
 print(mResults_PD.Mean.mods)
 orchard_plot(mResults_PD.Mean.mods, xlab = "lnRR") +
   ggtitle("Meta-analysis of pest density mean",
@@ -2742,8 +2743,8 @@ allMa.var.df <-
     list(
       'Pest density' = mResults_PD.Var.int$data,
       'Parasitism rate' = mResults_ParR.Var.int$data,
-      'Yield' = mResults_ParR.Var.int$data,
-      'Parasitoid abundance' = mResults_ParR.Var.int$data
+      'Yield' = mResults_Yield.Var.int$data,
+      'Parasitoid abundance' = mResults_ParAb.Var.int$data
     ),
     .id = "Response"
   ) %>%
@@ -2839,6 +2840,15 @@ final_plot <-
 
 
 final_plot
+
+if(save_meta_results) {
+  
+  write_rds(allMa.mean.df, 'Outputs/ma_mean_df.rds')
+  write_rds(allMA.mean.res, 'Outputs/ma_mean_res.rds')
+  write_rds(allMa.var.df, 'Outputs/ma_var_df.rds')
+  write_rds(allMA.var.res, 'Outputs/ma_var_res.rds')
+  
+}
 
   # '8E2) Final table ----
 

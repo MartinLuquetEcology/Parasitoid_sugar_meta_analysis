@@ -26,6 +26,10 @@ paper.table <- read_rds('Outputs/paper_tab.rds')
 meta.tab <- read_rds('Outputs/meta_tab.rds')
 tmt.distrib <- read_rds('Outputs/tmt_distrib_complete.rds')
 expTmt.table <- read_rds('Outputs/exp_tmt_tab.rds')
+allMa.mean.df <- read_rds('Outputs/ma_mean_df.rds')
+allMA.mean.res <- read_rds('Outputs/ma_mean_res.rds')
+allMa.var.df <- read_rds('Outputs/ma_var_df.rds')
+allMA.var.res <- read_rds('Outputs/ma_var_res.rds')
 
   # Functions
 path.func <- "R/Functions"
@@ -264,181 +268,254 @@ if(save_fig3) {
 ###### Figure 4 ######
 #################### #
 
-allMa.mean.df <- 
-  bind_rows(
-    list(
-      'Pest density' = mResults_PD.Mean.int$data,
-      'Parasitism rate' = mResults_ParR.Mean.int$data,
-      'Yield' = mResults_Yield.Mean.int$data,
-      'Parasitoid abundance' = mResults_ParAb.Mean.int$data
-    ),
-    .id = "Response"
-  ) %>%
-  mutate(Response = fct_rev(fct_relevel(Response,
-                                        c("Parasitoid abundance",
-                                          "Parasitism rate",
-                                          "Pest density",
-                                          "Yield")))) %>%
-  mutate(metrics = "Mean (lnRR)")
+# alternative : geom_pointrange + fatten (see old versions)
 
-allMA.mean.res <- 
-  bind_rows(
-    list(
-      'Pest density' = mResults_PD.Mean.postSA.Adj %>%
-        mutate(type = "ROM"),
-      'Parasitism rate' = mResults_ParR.Mean.int$mod_table %>%
-        mutate(Estimate = "Unadjusted",
-               type = "ROM"),
-      'Yield' = mResults_Yield.Mean.int$mod_table %>%
-        mutate(Estimate = "Unadjusted",
-               type = "ROM"),
-      'Parasitoid abundance' = mResults_ParAb.Mean.int$mod_table %>%
-        mutate(Estimate = "Unadjusted",
-               type = "ROM")
-    ),
-    .id = "Response"
-  ) %>%
-  mutate(metrics = "Mean (lnRR)")  %>%
-  group_by(Response) %>%
-  mutate(Overall_estimate = ifelse(n() > 1 & Estimate == "Unadjusted",
-                                   "Unadjusted (Evidence for pb)",
-                                   "Unadjusted (No evidence for pb) \nor Adjusted (Evidence for pb)"))
-
-
-
-final_plot_mean <- 
-  allMa.mean.df %>%
-  ggplot() +
-  ggbeeswarm::geom_quasirandom(
-    aes(y = yi, x = Response, size = 1/sqrt(vi), 
-        colour = Response, fill = Response),
-    alpha = 0.6) +
-  geom_hline(yintercept = 0, lty = "dashed") +
-  xlab(NULL) +
-  ylab("lnRR") +
-  coord_flip() +
-  guides(fill = "none",
-         colour = "none") +
-  geom_linerange(data = allMA.mean.res, 
-                 aes( 
+plot_beeswarm <- function(df, res, index, 
+                          point_size = 2, ci_lwd = 1.2, pi_lwd = 0.4) {
+  
+  p <- 
+    df %>%
+    ggplot() +
+    ggbeeswarm::geom_quasirandom(
+      aes(y = yi, x = Response, size = 1/sqrt(vi), 
+          colour = Response, fill = Response),
+      alpha = 0.6) +
+    geom_hline(yintercept = 0, lty = "dashed") +
+    xlab(NULL) +
+    coord_flip() +
+    guides(fill = "none",
+           colour = "none") +
+    # PI
+    geom_linerange(data = res, 
+                   aes(x = Response, 
+                       ymin = lowerPR, 
+                       ymax = upperPR),
+                   position = ggplot2::position_dodge2(width = 0.1),
+                   linewidth = pi_lwd,
+                   col = 'brown') +
+    # CI
+    geom_linerange(data = res, 
+                   aes( 
+                     x = Response, 
+                     ymin = lowerCL, 
+                     ymax = upperCL),
+                   position = ggplot2::position_dodge2(width = 0.1),
+                   linewidth = ci_lwd) +
+    # Points
+    geom_point(data = res, 
+               aes(y = estimate, 
                    x = Response, 
-                   ymin = lowerCL, 
-                   ymax = upperCL),
-                 position = ggplot2::position_dodge2(width = 0.1),
-                 size = 1.2) +
-  geom_pointrange(data = allMA.mean.res, 
-                  aes(y = estimate, 
-                      x = Response, 
-                      ymin = lowerPR, 
-                      ymax = upperPR,
-                      shape = fct_rev(Overall_estimate)),
-                  position = ggplot2::position_dodge2(width = 0.1),
-                  fatten = 6) +
+                   shape = fct_rev(Overall_estimate)),
+               position = ggplot2::position_dodge2(width = 0.1),
+               size = point_size) +
+    ggtitle(paste("Meta-analysis of", index)) +
+    scale_shape_discrete("Overall estimate")
+  
+}
+
+arrange_beeswarm <- function(plot) {
+  
+  plot +
+    guides(shape = "none") +
+    theme(legend.position.inside = c(1, 0),
+          legend.justification.inside = c(1, 0),
+          legend.position = "inside",
+          legend.direction = "horizontal",
+          legend.text = element_text(
+            size = 6
+          )) +
+    labs(size = "Precision")
+  
+}
+
+
+
+  #" A. Mean ----
+
+fig_4_mean <- 
+  plot_beeswarm(allMa.mean.df, allMA.mean.res, "mean") +
   facet_grid(fct_rev(metrics)~., space = "free", scales = "free", switch = "y") +
+  ylab("lnRR") +
   theme(legend.position = "bottom",
         axis.text.y = element_text(angle = 90, 
                                    hjust = 0.5, 
-                                   size = 12)) +
-  ggtitle("Meta-analysis of mean") +
-  scale_shape_discrete("Overall estimate")
+                                   size = 10))
 
+fig_4_mean
 
-allMa.var.df <- 
-  bind_rows(
-    list(
-      'Pest density' = mResults_PD.Var.int$data,
-      'Parasitism rate' = mResults_ParR.Var.int$data,
-      'Yield' = mResults_ParR.Var.int$data,
-      'Parasitoid abundance' = mResults_ParR.Var.int$data
-    ),
-    .id = "Response"
-  ) %>%
-  mutate(Response = fct_rev(fct_relevel(Response,
-                                        c("Parasitoid abundance",
-                                          "Parasitism rate",
-                                          "Pest density",
-                                          "Yield")))) %>%
-  mutate(metrics = "Variance (lnCVR)")
+#" B. Variance ----
 
-allMA.var.res <- 
-  bind_rows(
-    list(
-      'Pest density' = mResults_PD.Var.int$mod_table %>%
-        mutate(Estimate = "Unadjusted"),
-      'Parasitism rate' = mResults_ParR.Var.int$mod_table %>%
-        mutate(Estimate = "Unadjusted"),
-      'Yield' = mResults_Yield.Var.int$mod_table %>%
-        mutate(Estimate = "Unadjusted"),
-      'Parasitoid abundance' = mResults_ParAb.Var.postSA.Adj
-    ),
-    .id = "Response"
-  )  %>%
-  group_by(Response) %>%
-  mutate(Overall_estimate = ifelse(n() > 1 & Estimate == "Unadjusted",
-                                   "Unadjusted (Evidence for pb)",
-                                   "Unadjusted (No evidence for pb) \nor Adjusted (Evidence for pb)"))
-
-final_plot_var <- 
-  allMa.var.df %>%
-  ggplot() +
-  ggbeeswarm::geom_quasirandom(
-    aes(y = yi, x = Response, size = 1/sqrt(vi), 
-        colour = Response, fill = Response),
-    alpha = 0.6) +
-  geom_hline(yintercept = 0, lty = "dashed") +
-  xlab(NULL) +
+fig_4_var <- 
+  plot_beeswarm(allMa.var.df, allMA.var.res, "variance") +
+  facet_grid(metrics~., space = "free", scales = "free", switch = "y") +
   ylab("lnCVR") +
-  coord_flip() +
-  guides(fill = "none",
-         colour = "none") +
-  geom_linerange(data = allMA.var.res, 
-                 aes( 
-                   x = Response, 
-                   ymin = lowerCL, 
-                   ymax = upperCL),
-                 position = ggplot2::position_dodge2(width = 0.1),
-                 size = 1.2) +
-  geom_pointrange(data = allMA.var.res, 
-                  aes(y = estimate, 
-                      x = Response, 
-                      ymin = lowerPR, 
-                      ymax = upperPR,
-                      shape = fct_rev(Overall_estimate)),
-                  position = ggplot2::position_dodge2(width = 0.1),
-                  fatten = 6)  +
   theme(legend.position = "bottom",
         axis.text.y = element_blank()) +
-  facet_grid(metrics~., space = "free", scales = "free", switch = "y") +
-  ggtitle("Meta-analysis of variance") +
-  scale_shape_discrete("Overall estimate") +
   scale_y_continuous(minor_breaks = seq(-3, 2, by = 1))
 
-final_plot <- 
-  ggpubr::ggarrange(ggpubr::ggarrange(final_plot_mean + 
-                                        guides(shape = "none") +
-                                        theme(legend.position.inside = c(1, 0),
-                                              legend.justification.inside = c(1, 0),
-                                              legend.position = "inside",
-                                              legend.direction="horizontal",
-                                              legend.text = element_text(
-                                                size = 6
-                                              )) +
-                                        labs(size = "Precision") +
-                                        scale_size_continuous(breaks = c(10, 30, 50)), 
-                                      final_plot_var + 
-                                        guides(shape = "none") +
-                                        theme(legend.position.inside = c(1, 0),
-                                              legend.justification.inside = c(1, 0),
-                                              legend.position = "inside",
-                                              legend.direction="horizontal",
-                                              legend.text = element_text(
-                                                size = 6
-                                              )) +
-                                        labs(size = "Precision")+
-                                        scale_size_continuous(breaks = c(1, 3, 5)),
-                                      widths = c(25, 24)
-  ),
-  get_legend(final_plot_var)[[1]][[2]],
-  ncol = 1,
-  heights = c(20, 1)) +
+fig_4_var
+
+#" C. Both ----
+
+  # Combining figures
+fig_4_combined <- 
+  ggpubr::ggarrange(
+      # Mean
+    arrange_beeswarm(fig_4_mean) + 
+      scale_size_continuous(breaks = c(10, 30, 50)), 
+      # Variance
+    arrange_beeswarm(fig_4_var) +
+      scale_size_continuous(breaks = c(1, 3, 5)), widths = c(25, 24)
+    )
+                                    
+  # Adding the legend
+fig_4 <- 
+  ggpubr::ggarrange(
+    fig_4_combined,
+    get_legend(fig_4_var)[[1]][[2]],
+    ncol = 1,
+    heights = c(20, 1)) +
   theme(panel.background = element_rect(fill='white'))
+
+if(save_fig4) {
+  
+  ggsave(
+    'Outputs/Figures/fig_4.png',
+    fig_4,
+    unit = 'cm',
+    height = 16,
+    width = 16,
+    dpi = 600
+  )
+  
+}
+
+#" D. Alternative ----
+
+library(ggh4x)
+
+fig_4_2_mean <- 
+plot_beeswarm(allMa.mean.df, allMA.mean.res, "mean") +
+  ggh4x::facet_grid2(fct_rev(metrics) + Response~., 
+                     scales = "free", switch = "y",
+                     independent = 'x',
+                     strip = ggh4x::strip_nested(
+                       text_y = element_blank()
+                     )) +
+  ylab("lnRR") +
+  theme(legend.position = "bottom",
+        axis.text.y = element_text(angle = 90, 
+                                   hjust = 0.5, 
+                                   size = 10))
+
+fig_4_2_var <- 
+  plot_beeswarm(allMa.var.df, allMA.var.res, "variance") +
+  ggh4x::facet_grid2(metrics + Response~., 
+                     scales = "free", switch = "y",
+                     independent = 'x',
+                     strip = ggh4x::strip_nested(
+                       text_y = element_blank()
+                     )) +
+  ylab("lnCVR") +
+  theme(legend.position = "bottom",
+        axis.text.y = element_blank())
+
+fig_4_2_combined <- 
+  ggpubr::ggarrange(
+    # Mean
+    arrange_beeswarm(fig_4_2_mean) + 
+      scale_size_continuous(breaks = c(10, 30, 50)), 
+    # Variance
+    arrange_beeswarm(fig_4_2_var) +
+      scale_size_continuous(breaks = c(1, 3, 5)), widths = c(25, 24)
+  )
+
+# Adding the legend
+fig_4_2 <- 
+  ggpubr::ggarrange(
+    fig_4_2_combined,
+    get_legend(fig_4_2_var)[[1]][[2]],
+    ncol = 1,
+    heights = c(20, 1)) +
+  theme(panel.background = element_rect(fill='white'))
+
+if(save_fig4) {
+  
+  ggsave(
+    'Outputs/Figures/fig_4_2.png',
+    fig_4_2,
+    unit = 'cm',
+    height = 16,
+    width = 16,
+    dpi = 600
+  )
+  
+}
+
+#" Another alternative ----
+
+fig_4_3_mean <- 
+  plot_beeswarm(allMa.mean.df, allMA.mean.res, "mean") +
+  ggh4x::facet_grid2(Response~., 
+                     scales = "free", switch = "y",
+                     independent = 'x') +
+  ylab("lnRR") +
+  theme(legend.position = "bottom",
+        axis.text.y = element_blank()) +
+  theme(strip.text.y = element_text(size = 8)) +
+  scale_y_continuous(breaks = scales::pretty_breaks(3)) +
+  geom_hline(yintercept = log(1.25), lty = "dashed", col = 'red', lwd = 0.15) +
+  geom_hline(yintercept = log(2), lty = "dashed", col = 'blue', lwd = 0.15) +
+  geom_hline(yintercept = log(0.75), lty = "dashed", col = 'red', lwd = 0.15) +
+  geom_hline(yintercept = log(0.5), lty = "dashed", col = 'blue', lwd = 0.15)
+
+fig_4_3_var <- 
+  plot_beeswarm(allMa.var.df, allMA.var.res, "variance") +
+  ggh4x::facet_grid2(Response~., 
+                     scales = "free", switch = "y",
+                     independent = 'x',
+                     strip = ggh4x::strip_nested(
+                       text_y = element_blank()
+                     )) +
+  ylab("lnCVR") +
+  theme(legend.position = "bottom",
+        axis.text.y = element_blank()) +
+  scale_y_continuous(breaks = scales::pretty_breaks(3)) +
+  geom_hline(yintercept = log(1.25), lty = "dashed", col = 'red', lwd = 0.15) +
+  geom_hline(yintercept = log(2), lty = "dashed", col = 'blue', lwd = 0.15) +
+  geom_hline(yintercept = log(0.75), lty = "dashed", col = 'red', lwd = 0.15) +
+  geom_hline(yintercept = log(0.5), lty = "dashed", col = 'blue', lwd = 0.15)
+
+
+
+fig_4_3_combined <- 
+  ggpubr::ggarrange(
+    # Mean
+    arrange_beeswarm(fig_4_3_mean) + 
+      scale_size_continuous(breaks = c(10, 30, 50)), 
+    # Variance
+    arrange_beeswarm(fig_4_3_var) +
+      scale_size_continuous(breaks = c(1, 3, 5)), widths = c(25, 24)
+  )
+
+# Adding the legend
+fig_4_3 <- 
+  ggpubr::ggarrange(
+    fig_4_3_combined,
+    get_legend(fig_4_3_var)[[1]][[2]],
+    ncol = 1,
+    heights = c(20, 1)) +
+  theme(panel.background = element_rect(fill='white'))
+
+if(save_fig4) {
+  
+  ggsave(
+    'Outputs/Figures/fig_4_3.png',
+    fig_4_3,
+    unit = 'cm',
+    height = 16,
+    width = 16,
+    dpi = 600
+  )
+  
+}

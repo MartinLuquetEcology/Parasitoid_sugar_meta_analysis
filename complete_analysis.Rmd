@@ -1924,7 +1924,7 @@ meta.PD.Var.5 <- update(meta.PD.Var.1, random =~1|Exp_ID/Sub_exp,
 AIC(meta.PD.Var.1, meta.PD.Var.2, meta.PD.Var.3,
     meta.PD.Var.4, meta.PD.Var.5) 
         # --> meta.PD.Var.3 has the lowest AIC
-        # (shared study only)
+        # (exp only)
         # we probably do not have enough information for effects of other factors
 
 ```
@@ -3098,8 +3098,8 @@ allMa.var.df <-
     list(
       'Pest density' = mResults_PD.Var.int$data,
       'Parasitism rate' = mResults_ParR.Var.int$data,
-      'Yield' = mResults_ParR.Var.int$data,
-      'Parasitoid abundance' = mResults_ParR.Var.int$data
+      'Yield' = mResults_Yield.Var.int$data,
+      'Parasitoid abundance' = mResults_ParAb.Var.int$data
     ),
     .id = "Response"
   ) %>%

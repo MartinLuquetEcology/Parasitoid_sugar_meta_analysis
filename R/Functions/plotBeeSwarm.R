@@ -1,6 +1,6 @@
 # Custom orchard plots using ggbeeswarm::geom_quasirandom()
 plotBeeSwarm <- function(df, res, index, es_lab,
-                          point_size = 2, ci_lwd = 1.2, pi_lwd = 0.4,
+                          point_size = 2.5, ci_lwd = 1.2, pi_lwd = 0.4,
                           move_legend = T) {
   
   p <- 

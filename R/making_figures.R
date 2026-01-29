@@ -297,7 +297,7 @@ fig_4_mean <-
 
   # Variance figure
 fig_4_var <- 
-  plotBeeSwarm(allMa.var.df, allMA.var.res, 'mean', 'lnCVR') +
+  plotBeeSwarm(allMa.var.df, allMA.var.res, 'variance', 'lnCVR') +
   ggh4x::facet_grid2(Response~., 
                      scales = "free", switch = "y",
                      independent = 'x',
@@ -336,7 +336,7 @@ if(save_fig4) {
     'Outputs/Figures/fig_4.png',
     fig_4,
     unit = 'cm',
-    height = 16,
+    height = 20,
     width = 16,
     dpi = 600
   )

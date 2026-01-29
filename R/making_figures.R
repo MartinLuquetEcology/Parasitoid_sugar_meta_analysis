@@ -306,18 +306,25 @@ fig_4_var <-
                        text_y = element_blank()
                      ))  +
   addPercentChange(col = rep(c('blue', 'red'), 8)) +
-  scale_size_continuous(breaks = c(1, 3, 5))
+  scale_size_continuous(breaks = c(1, 3, 5)) 
 
   # First combining, then adding the legend
 fig_4_combined <- ggpubr::ggarrange(fig_4_mean, fig_4_var)
 
+fig_4_legend <- plotBeeSwarm(allMa.mean.df, allMA.mean.res, NULL, NULL, 
+                      move_legend = F) %>% 
+  ggpubr::get_legend() %>%
+  .$grobs %>%
+  .[[2]]
+
 fig_4 <- 
   ggpubr::ggarrange(
     fig_4_combined,
-    get_legend(fig_4_var)[[1]][[2]],
+    fig_4_legend,
     ncol = 1,
-    heights = c(20, 1)) +
+    heights = c(20, 1.5)) +
   theme(panel.background = element_rect(fill='white'))
+
 
 fig_4
 

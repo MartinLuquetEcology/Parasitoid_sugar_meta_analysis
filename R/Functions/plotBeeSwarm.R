@@ -61,4 +61,6 @@ plotBeeSwarm <- function(df, res, index, es_lab,
     
   }
   
+  return(p)
+  
 }

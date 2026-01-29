@@ -4,10 +4,12 @@
 ###### Initiation ######
 ######################## #
 
-  # Clearing
+### Clearing
+
 rm(list = ls())
 
-  # Packages
+### Packages
+
 if(!require('pacman')) { 
   install.packages('pacman') 
   library('pacman') 
@@ -17,36 +19,34 @@ pacman::p_load(
   # Data manipulation
   tidyverse, 
   # Graphics
-  ggpubr, ggtext, maps
+  ggpubr, ggtext, maps, scales, ggh4x
 )
 
-  # Data
-  # cf main_script.R
-paper.table <- read_rds('Outputs/paper_tab.rds')
-meta.tab <- read_rds('Outputs/meta_tab.rds')
-tmt.distrib <- read_rds('Outputs/tmt_distrib_complete.rds')
-expTmt.table <- read_rds('Outputs/exp_tmt_tab.rds')
-allMa.mean.df <- read_rds('Outputs/ma_mean_df.rds')
-allMA.mean.res <- read_rds('Outputs/ma_mean_res.rds')
-allMa.var.df <- read_rds('Outputs/ma_var_df.rds')
-allMA.var.res <- read_rds('Outputs/ma_var_res.rds')
+### User input
 
-  # Functions
-path.func <- "R/Functions"
-files.func <- list.files(path.func)
-path.files <- paste(path.func, files.func, sep = "/")
-sapply(path.files, source)
-
-  # User input
     # set to TRUE to save figures again
 save_fig2 <- FALSE # fig. 2
 save_fig3 <- FALSE # fig. 3
 save_fig4 <- FALSE # fig. 4
 
+
 #################### #
 ###### Figure 2 ######
 #################### #
 
+# Data needed (cf main script)
+  # table with all treatments of all experiments
+expTmt.table <- read_rds('Outputs/exp_tmt_tab.rds')
+  # table with papers and their year of publication
+paper.table <- read_rds('Outputs/paper_tab.rds')
+
+# Functions
+  # To plot the dynamics of publication over time
+source('R/Functions/plotDyn.R')
+  # To deal with point size on maps
+source('R/Functions/pointsMap.R')
+
+  # World map
 fig_2_layout <-   
   ggplot() + 
   annotation_borders("world", colour = "gray60", fill = "gray80") +
@@ -56,27 +56,10 @@ fig_2_layout <-
   ylim(-60, NA) + 
   theme(legend.position = 'none')
 
-points_map <- function(size) {
-  geom_point(
-    data = expTmt.table,
-    aes(Longitude, Latitude, col = Tmt_sugar_name, shape = Included),
-    size = size
-  )
-}
-
 fig_2_world <- fig_2_layout + 
-  points_map(size = 2)
+  pointsMap(size = 2)
 
-fig_2_eu <- fig_2_layout + 
-  coord_quickmap(xlim = c(-10,25), ylim = c(35,65)) + 
-  points_map(size = 3) + 
-  theme(axis.text = element_blank())
-
-fig_2_usa <- fig_2_layout + 
-  coord_quickmap(xlim = c(-125, -75), ylim = c(30,55)) + 
-  points_map(size = 3) + 
-  theme(axis.text = element_blank())
-
+    # Extracting legends
 fig_2_map_legend_fs <- 
   ggpubr::get_legend(
     fig_2_world + 
@@ -95,6 +78,18 @@ fig_2_map_legend_incl <-
         col = 'none')
   ) %>% as_ggplot
 
+  # Zooms on EU and USA
+fig_2_eu <- fig_2_layout + 
+  coord_quickmap(xlim = c(-10,25), ylim = c(35,65)) + 
+  pointsMap(size = 3) + 
+  theme(axis.text = element_blank())
+
+fig_2_usa <- fig_2_layout + 
+  coord_quickmap(xlim = c(-125, -75), ylim = c(30,55)) + 
+  pointsMap(size = 3) + 
+  theme(axis.text = element_blank())
+
+  # Dynamics of publication
 fig_2_dyn <- 
   plotDyn(paper.table, "Publication_year", "Year of publication", "papers", F) +
   labs(x = NULL, fill = NULL, title = NULL) + theme(legend.position = 'none') +
@@ -108,6 +103,10 @@ fig_2_dyn_legend <-
         fill = guide_legend(title.position = "top", title.hjust = 0.5, title.vjust = 2))
   ) %>% as_ggplot
 
+
+  # For now, all of these will be arranged by hand using PowerPoint
+  # We recognise it's not best practice
+  # Let's see if we get some time to do better
 
 if(save_fig2) {
   
@@ -180,6 +179,17 @@ if(save_fig2) {
 
   # Merging previous fig. 3 and 4
 
+# Data needed (cf main script)
+  # Table used for meta analyses (with effect sizes)
+meta.tab <- read_rds('Outputs/meta_tab.rds')
+  # Distribution of treatments across experiments
+tmt.distrib <- read_rds('Outputs/tmt_distrib_complete.rds')
+
+  # Functions
+    # A little function to reduce the size of 'n = ...' on plots
+source('R/Functions/labellerN.R')
+
+
   # Distribution of effect sizes
 es_distrib <- 
   meta.tab %>%
@@ -212,7 +222,8 @@ tmt.distrib %>%
   dplyr::select(Tmt_spatial, Tmt_sugar_name, Nb_exp) %>%
   right_join(es_distrib_complete, by = c('Tmt_spatial', 'Tmt_sugar_name')) 
 
-fig_3_init <- 
+  # Making the figure
+fig_3 <- 
   es_distrib_complete %>%
     # Re-ordering to plot variables in descending order of occurrences
   mutate(Variable = fct_reorder(Variable, Nb_included_na, .desc = T, .na_rm = T)) %>%
@@ -231,21 +242,9 @@ fig_3_init <-
   size = 4) +
   scale_color_manual(values = c('white','darkgrey')) +
   labs(x = NULL, y = NULL) +
-  guides(col = 'none')
-
-
-  # We add this to decrease the size of nb of exp
-labeller_n <- function(x) {
-  sub(
-    "\n\\((n = [0-9]+/[0-9]+)\\)",
-    "<br><span style='font-size:6pt'><i>(\\1)</i></span>",
-    x
-  )
-}
-
-fig_3 <- 
-  fig_3_init +
-  scale_y_discrete(labels = labeller_n) +
+  guides(col = 'none') +
+    # Reducing 'n = ...' size using custom function labellerN()
+  scale_y_discrete(labels = labellerN) +
   theme(axis.text.y = ggtext::element_markdown())
 
 fig_3
@@ -268,107 +267,50 @@ if(save_fig3) {
 ###### Figure 4 ######
 #################### #
 
-# alternative : geom_pointrange + fatten (see old versions)
+  # Data needed (cf main script)
+    # df used for meta analyses and results
+allMa.mean.df <- read_rds('Outputs/ma_mean_df.rds')
+allMA.mean.res <- read_rds('Outputs/ma_mean_res.rds')
+allMa.var.df <- read_rds('Outputs/ma_var_df.rds')
+allMA.var.res <- read_rds('Outputs/ma_var_res.rds')
 
-plot_beeswarm <- function(df, res, index, 
-                          point_size = 2, ci_lwd = 1.2, pi_lwd = 0.4) {
-  
-  p <- 
-    df %>%
-    ggplot() +
-    ggbeeswarm::geom_quasirandom(
-      aes(y = yi, x = Response, size = 1/sqrt(vi), 
-          colour = Response, fill = Response),
-      alpha = 0.6) +
-    geom_hline(yintercept = 0, lty = "dashed") +
-    xlab(NULL) +
-    coord_flip() +
-    guides(fill = "none",
-           colour = "none") +
-    # PI
-    geom_linerange(data = res, 
-                   aes(x = Response, 
-                       ymin = lowerPR, 
-                       ymax = upperPR),
-                   position = ggplot2::position_dodge2(width = 0.1),
-                   linewidth = pi_lwd,
-                   col = 'brown') +
-    # CI
-    geom_linerange(data = res, 
-                   aes( 
-                     x = Response, 
-                     ymin = lowerCL, 
-                     ymax = upperCL),
-                   position = ggplot2::position_dodge2(width = 0.1),
-                   linewidth = ci_lwd) +
-    # Points
-    geom_point(data = res, 
-               aes(y = estimate, 
-                   x = Response, 
-                   shape = fct_rev(Overall_estimate)),
-               position = ggplot2::position_dodge2(width = 0.1),
-               size = point_size) +
-    ggtitle(paste("Meta-analysis of", index)) +
-    scale_shape_discrete("Overall estimate")
-  
-}
-
-arrange_beeswarm <- function(plot) {
-  
-  plot +
-    guides(shape = "none") +
-    theme(legend.position.inside = c(1, 0),
-          legend.justification.inside = c(1, 0),
-          legend.position = "inside",
-          legend.direction = "horizontal",
-          legend.text = element_text(
-            size = 6
-          )) +
-    labs(size = "Precision")
-  
-}
+  # Functions
+    # To make the orchard plots we'll use this custom function
+source('R/Functions/plotBeeSwarm.R')
+    # To add vertical lines to guide interpretation
+source('R/Functions/addPercentChange.R')
 
 
-
-  #" A. Mean ----
-
+  # Mean figure
 fig_4_mean <- 
-  plot_beeswarm(allMa.mean.df, allMA.mean.res, "mean") +
-  facet_grid(fct_rev(metrics)~., space = "free", scales = "free", switch = "y") +
-  ylab("lnRR") +
-  theme(legend.position = "bottom",
-        axis.text.y = element_text(angle = 90, 
-                                   hjust = 0.5, 
-                                   size = 10))
+  plotBeeSwarm(allMa.mean.df, allMA.mean.res, 'mean', 'lnRR') +
+  # Adding independent facets using facet_grid2
+  ggh4x::facet_grid2(
+    Response~., 
+    scales = "free", switch = "y", independent = 'x'
+  ) +
+  theme(strip.text = element_text(size = 8)) +
+  # Adding vertical lines (pct change) to guide interpretation
+  addPercentChange(col = rep(c('blue', 'red'), 8)) + 
+  # Doing this by hand (can't figure out a nice way with scales::pretty_breaks())
+  scale_size_continuous(breaks = c(10, 30, 50))
 
-fig_4_mean
-
-#" B. Variance ----
-
+  # Variance figure
 fig_4_var <- 
-  plot_beeswarm(allMa.var.df, allMA.var.res, "variance") +
-  facet_grid(metrics~., space = "free", scales = "free", switch = "y") +
-  ylab("lnCVR") +
-  theme(legend.position = "bottom",
-        axis.text.y = element_blank()) +
-  scale_y_continuous(minor_breaks = seq(-3, 2, by = 1))
+  plotBeeSwarm(allMa.var.df, allMA.var.res, 'mean', 'lnCVR') +
+  ggh4x::facet_grid2(Response~., 
+                     scales = "free", switch = "y",
+                     independent = 'x',
+                     # No text in facets as figures will be combined
+                     strip = ggh4x::strip_nested(
+                       text_y = element_blank()
+                     ))  +
+  addPercentChange(col = rep(c('blue', 'red'), 8)) +
+  scale_size_continuous(breaks = c(1, 3, 5))
 
-fig_4_var
+  # First combining, then adding the legend
+fig_4_combined <- ggpubr::ggarrange(fig_4_mean, fig_4_var)
 
-#" C. Both ----
-
-  # Combining figures
-fig_4_combined <- 
-  ggpubr::ggarrange(
-      # Mean
-    arrange_beeswarm(fig_4_mean) + 
-      scale_size_continuous(breaks = c(10, 30, 50)), 
-      # Variance
-    arrange_beeswarm(fig_4_var) +
-      scale_size_continuous(breaks = c(1, 3, 5)), widths = c(25, 24)
-    )
-                                    
-  # Adding the legend
 fig_4 <- 
   ggpubr::ggarrange(
     fig_4_combined,
@@ -377,8 +319,12 @@ fig_4 <-
     heights = c(20, 1)) +
   theme(panel.background = element_rect(fill='white'))
 
+fig_4
+
+  # Saving
 if(save_fig4) {
   
+  # World
   ggsave(
     'Outputs/Figures/fig_4.png',
     fig_4,
@@ -390,132 +336,3 @@ if(save_fig4) {
   
 }
 
-#" D. Alternative ----
-
-library(ggh4x)
-
-fig_4_2_mean <- 
-plot_beeswarm(allMa.mean.df, allMA.mean.res, "mean") +
-  ggh4x::facet_grid2(fct_rev(metrics) + Response~., 
-                     scales = "free", switch = "y",
-                     independent = 'x',
-                     strip = ggh4x::strip_nested(
-                       text_y = element_blank()
-                     )) +
-  ylab("lnRR") +
-  theme(legend.position = "bottom",
-        axis.text.y = element_text(angle = 90, 
-                                   hjust = 0.5, 
-                                   size = 10))
-
-fig_4_2_var <- 
-  plot_beeswarm(allMa.var.df, allMA.var.res, "variance") +
-  ggh4x::facet_grid2(metrics + Response~., 
-                     scales = "free", switch = "y",
-                     independent = 'x',
-                     strip = ggh4x::strip_nested(
-                       text_y = element_blank()
-                     )) +
-  ylab("lnCVR") +
-  theme(legend.position = "bottom",
-        axis.text.y = element_blank())
-
-fig_4_2_combined <- 
-  ggpubr::ggarrange(
-    # Mean
-    arrange_beeswarm(fig_4_2_mean) + 
-      scale_size_continuous(breaks = c(10, 30, 50)), 
-    # Variance
-    arrange_beeswarm(fig_4_2_var) +
-      scale_size_continuous(breaks = c(1, 3, 5)), widths = c(25, 24)
-  )
-
-# Adding the legend
-fig_4_2 <- 
-  ggpubr::ggarrange(
-    fig_4_2_combined,
-    get_legend(fig_4_2_var)[[1]][[2]],
-    ncol = 1,
-    heights = c(20, 1)) +
-  theme(panel.background = element_rect(fill='white'))
-
-if(save_fig4) {
-  
-  ggsave(
-    'Outputs/Figures/fig_4_2.png',
-    fig_4_2,
-    unit = 'cm',
-    height = 16,
-    width = 16,
-    dpi = 600
-  )
-  
-}
-
-#" Another alternative ----
-
-fig_4_3_mean <- 
-  plot_beeswarm(allMa.mean.df, allMA.mean.res, "mean") +
-  ggh4x::facet_grid2(Response~., 
-                     scales = "free", switch = "y",
-                     independent = 'x') +
-  ylab("lnRR") +
-  theme(legend.position = "bottom",
-        axis.text.y = element_blank()) +
-  theme(strip.text.y = element_text(size = 8)) +
-  scale_y_continuous(breaks = scales::pretty_breaks(3)) +
-  geom_hline(yintercept = log(1.25), lty = "dashed", col = 'red', lwd = 0.15) +
-  geom_hline(yintercept = log(2), lty = "dashed", col = 'blue', lwd = 0.15) +
-  geom_hline(yintercept = log(0.75), lty = "dashed", col = 'red', lwd = 0.15) +
-  geom_hline(yintercept = log(0.5), lty = "dashed", col = 'blue', lwd = 0.15)
-
-fig_4_3_var <- 
-  plot_beeswarm(allMa.var.df, allMA.var.res, "variance") +
-  ggh4x::facet_grid2(Response~., 
-                     scales = "free", switch = "y",
-                     independent = 'x',
-                     strip = ggh4x::strip_nested(
-                       text_y = element_blank()
-                     )) +
-  ylab("lnCVR") +
-  theme(legend.position = "bottom",
-        axis.text.y = element_blank()) +
-  scale_y_continuous(breaks = scales::pretty_breaks(3)) +
-  geom_hline(yintercept = log(1.25), lty = "dashed", col = 'red', lwd = 0.15) +
-  geom_hline(yintercept = log(2), lty = "dashed", col = 'blue', lwd = 0.15) +
-  geom_hline(yintercept = log(0.75), lty = "dashed", col = 'red', lwd = 0.15) +
-  geom_hline(yintercept = log(0.5), lty = "dashed", col = 'blue', lwd = 0.15)
-
-
-
-fig_4_3_combined <- 
-  ggpubr::ggarrange(
-    # Mean
-    arrange_beeswarm(fig_4_3_mean) + 
-      scale_size_continuous(breaks = c(10, 30, 50)), 
-    # Variance
-    arrange_beeswarm(fig_4_3_var) +
-      scale_size_continuous(breaks = c(1, 3, 5)), widths = c(25, 24)
-  )
-
-# Adding the legend
-fig_4_3 <- 
-  ggpubr::ggarrange(
-    fig_4_3_combined,
-    get_legend(fig_4_3_var)[[1]][[2]],
-    ncol = 1,
-    heights = c(20, 1)) +
-  theme(panel.background = element_rect(fill='white'))
-
-if(save_fig4) {
-  
-  ggsave(
-    'Outputs/Figures/fig_4_3.png',
-    fig_4_3,
-    unit = 'cm',
-    height = 16,
-    width = 16,
-    dpi = 600
-  )
-  
-}

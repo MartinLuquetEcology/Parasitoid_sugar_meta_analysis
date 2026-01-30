@@ -17,6 +17,7 @@ save_exp_tmt_table <- FALSE
 save_tmt_distrib <- FALSE
 save_meta_table <- FALSE
 save_meta_results <- TRUE
+save_models <- TRUE
 
 # For reproducibility (jitter, etc.)
 set.seed(177)
@@ -1662,6 +1663,8 @@ lapply(varCorLev_PD.Mean.postSA.int.pb,
       # the model and conclude to a (small) negative effect of sugars on PD
       # But see how this depends on parameter values here: evidence is low
 
+  # Saving final model for posthoc analyses
+if(save_models) write_rds(meta.PD.Mean.postSA.int.pb, 'Outputs/Models/mod_PD_mean.rds')
 
   ###### ''8A2) Meta-analysis of variance ----
 
@@ -1795,6 +1798,9 @@ sensAnCompl("PD", "Var", "lnCVR", "Pest density", run_sens_ana = run_sens_ana)
   # check sensAnCompl() custom function
 sensAnCor(meta.PD.dat, "lnCVR", meta.PD.Var.int, meta.PD.Var.int.pb)
 
+  # Saving final model for posthoc analuses
+if(save_models) write_rds(meta.PD.Var.int, 'Outputs/Models/mod_PD_var.rds')
+
     ## Final plot
 meta.PD.Var.modResultsAdjPb <- plotAdjEst("PD", "Var", "lnCVR", "Pest density")
 meta.PD.Var.modResultsAdjPb
@@ -1927,6 +1933,9 @@ sensAnCor(meta.ParAb.dat, "lnRR", meta.ParAb.Mean.int, meta.ParAb.Mean.int.pb)
   ## Final plot
 meta.ParAb.Mean.modResultsAdjPb <- plotAdjEst("ParAb", "Mean", "lnCVR", "Pest Density")
 meta.ParAb.Mean.modResultsAdjPb
+
+  # Saving the final selected model for posthoc analyses
+if(save_models) write_rds(meta.ParAb.Mean.int, 'Outputs/Models/mod_parAb_mean.rds')
 
   ###### ''8B2) Meta-analysis of variance ----
 
@@ -2091,6 +2100,10 @@ mResults_ParAb.Var.postSA.Adj <- modResultsAdjPb("ParAb", "Var", postSA = T)
 meta.ParAb.Var.modResultsAdjPb <- plotAdjEst("ParAb", "Var", "lnCVR", "Parasitoid abundance", postSA = T)
 meta.ParAb.Var.modResultsAdjPb
 
+# Saving the final selected model for posthoc analyses
+if(save_models) write_rds(meta.ParAb.Var.postSA.int.pb, 'Outputs/Models/mod_parAb_var.rds')
+
+
   ###### ''8B3) Final plot for meta-analysis of parasitoid abundance ----
 
 meta.ParAb.modResultsAdjPb <-
@@ -2232,7 +2245,8 @@ update(meta.ParR.Mean.int,
        data = meta.ParR.dat.noOutlier,
        V = vcov.ParR.lnRR.05.noOutlier)
 
-
+# Saving the final selected model for posthoc analyses
+if(save_models) write_rds(meta.ParR.Mean.int, 'Outputs/Models/mod_parR_mean.rds')
 
 ## Final plot
 meta.ParR.Mean.modResultsAdjPb <- plotAdjEst("ParR", "Mean", "lnRR", "Parasitism rate")
@@ -2348,9 +2362,12 @@ meta.ParR.dat %>%
     # When removing this paper the effect disappears
     # Indeed we have important variances in this paper
       # Let's keep the results that way though
-      # The paper does not de part as much from the distribution
+      # The paper does not depart as much from the distribution
       # as in other sensitivity analyses
       # Let's keep that in mind in other papers
+
+  # Saving model for post hoc analyses
+if(save_models) write_rds(meta.ParR.Var.int, 'Outputs/Models/mod_parR_var.rds')
 
   ## Final plot
 meta.ParR.Var.modResultsAdjPb <- plotAdjEst("ParR", "Var", "lnCVR", "Parasitism rate")
@@ -2528,6 +2545,9 @@ meta.Yield.dat %>%
     # Very sensitive: not enough data -> impossible to answer
 sensAnCor(meta.Yield.dat, "lnRR", meta.Yield.Mean.int, meta.Yield.Mean.int.pb)
 
+# Saving model for post hoc analyses
+if(save_models) write_rds(meta.Yield.Mean.int, 'Outputs/Models/mod_yield_mean.rds')
+
 ## Final plot
 meta.Yield.Mean.modResultsAdjPb <- plotAdjEst("Yield", "Mean", "lnRR", "Yield")
 meta.Yield.Mean.modResultsAdjPb
@@ -2634,6 +2654,9 @@ bubble_plot(meta.Yield.Var.int.pb, mod = "year.c", group = "Exp_ID") +
 ## Sensitivity analysis
 sensAnCompl("Yield", "Var", "lnCVR", "Yield", run_sens_ana = run_sens_ana)
 sensAnCor(meta.Yield.dat, "lnRR", meta.Yield.Var.int, meta.Yield.Var.int.pb)
+
+# Saving model for post hoc analyses
+if(save_models) write_rds(meta.Yield.Var.int, 'Outputs/Models/mod_yield_var.rds')
 
 ## Final plot
 meta.Yield.Var.modResultsAdjPb <- plotAdjEst("Yield", "Var", "lnCVR", "Yield")

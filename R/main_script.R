@@ -2866,6 +2866,17 @@ final_plot
 
 if(save_meta_results) {
   
+  allMA.mean.res <- 
+    allMA.mean.res %>%
+    mutate(Response = factor(Response),
+           Response = fct_relevel(Response, levels(allMa.mean.df$Response)))
+  
+  allMA.var.res <- 
+    allMA.var.res %>%
+    mutate(Response = factor(Response),
+           Response = fct_relevel(Response, levels(allMa.var.df$Response)))
+  
+  
   write_rds(allMa.mean.df, 'Outputs/ma_mean_df.rds')
   write_rds(allMA.mean.res, 'Outputs/ma_mean_res.rds')
   write_rds(allMa.var.df, 'Outputs/ma_var_df.rds')

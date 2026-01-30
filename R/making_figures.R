@@ -286,7 +286,7 @@ fig_4_mean <-
   plotBeeSwarm(allMa.mean.df, allMA.mean.res, 'mean', 'lnRR') +
   # Adding independent facets using facet_grid2
   ggh4x::facet_grid2(
-    Response~., 
+    fct_rev(Response)~., 
     scales = "free", switch = "y", independent = 'x'
   ) +
   theme(strip.text = element_text(size = 8)) +
@@ -298,7 +298,7 @@ fig_4_mean <-
   # Variance figure
 fig_4_var <- 
   plotBeeSwarm(allMa.var.df, allMA.var.res, 'variance', 'lnCVR') +
-  ggh4x::facet_grid2(Response~., 
+  ggh4x::facet_grid2(fct_rev(Response)~., 
                      scales = "free", switch = "y",
                      independent = 'x',
                      # No text in facets as figures will be combined

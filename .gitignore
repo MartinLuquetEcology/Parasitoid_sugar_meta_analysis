@@ -6,6 +6,3 @@ Data
 Outputs/*
 !Outputs/session_info.txt
 *.pdf
-R/review_analyses.R
-R/additional_analyses_ins.R
-R/additional_analyses_div.R

@@ -3256,4 +3256,4 @@ ggplot(otherVar.dat,
   theme(strip.text.y = element_blank())
 ```
 
-# 8. Bibliography
+# 8. References

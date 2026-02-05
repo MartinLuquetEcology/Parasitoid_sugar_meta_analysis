@@ -1,6 +1,6 @@
 # Parasitoid sugar meta-analysis
 
-This is the script accompanying the paper ***Does additional sugars in the field improve biological control by parasitoids? A systematic review and meta analysis*** by Martin Luquet, Blas Lavandero, Emmanuel Desouhant and Bruno Jaloux. It is now private but will be made public upon papers' acceptance.
+This is the script accompanying the paper ***Global meta-analysis reveals effects of sugar provisioning on parasitoid numbers and parasitism rates, but not on pest numbers or yield in agroecosystems*** by Martin Luquet, Blas Lavandero, Emmanuel Desouhant and Bruno Jaloux. It is now private but will be made public upon papers' acceptance.
 
 ## Data availability
 

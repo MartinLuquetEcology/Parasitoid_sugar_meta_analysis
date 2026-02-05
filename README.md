@@ -32,5 +32,5 @@ All analyses were performed using R version 4.4.1. Details about OS, R version a
   - **Sensitivity_analyses** will contain all outputs generated from sensitivity analyses.
   - Other `.rds` will mainly be tables or model outputs needed to reproduce figures and other ouputs in a more efficient and faster way.
   - `session_info.txt` is already there  and contains all information about OS, R version and packages used.
-- By default, there is no **Data** folder: it will be created when running `complete_analysis.Rmd` or `main_script.R`. All needed data files will be automatically downloaded from the associated OSF project (**insert link later**).
+- By default, there is no **Data** folder: it will be created when running `complete_analysis.Rmd` or `main_script.R`. All needed data files will be automatically downloaded from the associated OSF project (**link here:** https://osf.io/uk765/overview).
 - `.gitignore` contains information about files included in the version control.

@@ -12,7 +12,7 @@ To reproduce analyses, you just need to open the R project `Parasitoid_sugar_met
 
 ## Session information
 
-All analyses were performed using R version 4.4.1. Details about OS, R version and R packages can be found in `Outputs/session_info.txt`.
+All analyses were performed using R version 4.5.2. Details about OS, R version and R packages can be found in `Outputs/session_info.txt`.
 
 ## Repository detailed description
 

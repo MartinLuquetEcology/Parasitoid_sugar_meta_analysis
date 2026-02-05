@@ -1,5 +1,5 @@
 ---
-title: "Supporting Information - Does sugar provisioning benefit biological control by parasitoids in agroecosystems? A systematic review and meta-analysis"
+title: "Global meta-analysis reveals effects of sugar provisioning on parasitoid numbers and parasitism rates, but not on pest numbers or yield in agroecosystems"
 subtitle: "Appendix S3 - Posthoc analyses"
 author: "Martin Luquet, Blas Lavandero, Emmanuel Desouhant, Bruno Jaloux"
 date: "`r format(Sys.time(), '%Y/%m/%d')` - first created on 2026/02/03"

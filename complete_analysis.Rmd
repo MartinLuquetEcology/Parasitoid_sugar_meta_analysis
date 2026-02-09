@@ -1,5 +1,5 @@
 ---
-title: "Global meta-analysis reveals effects of sugar provisioning on parasitoid numbers and parasitism rates, but not on pest numbers or yield in agroecosystems"
+title: "Global meta-analysis reveals positive effects of sugar provisioning on parasitoids in agroecosystems, without conclusive evidence for reduced pest densities"
 subtitle: "Appendix S2 - Complete analysis"
 author: "Martin Luquet, Blas Lavandero, Emmanuel Desouhant, Bruno Jaloux"
 date: "`r format(Sys.time(), '%Y/%m/%d')` - first created on 2025/07/25"

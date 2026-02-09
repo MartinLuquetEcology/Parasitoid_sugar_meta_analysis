@@ -1,6 +1,6 @@
 # Parasitoid sugar meta-analysis
 
-This is the script accompanying the paper ***Global meta-analysis reveals effects of sugar provisioning on parasitoid numbers and parasitism rates, but not on pest numbers or yield in agroecosystems*** by Martin Luquet, Blas Lavandero, Emmanuel Desouhant and Bruno Jaloux. It is now private but will be made public upon papers' acceptance.
+This is the script accompanying the paper ***Global meta-analysis reveals positive effects of sugar provisioning on parasitoids in agroecosystems, without conclusive evidence for reduced pest densities*** by Martin Luquet, Blas Lavandero, Emmanuel Desouhant and Bruno Jaloux. It is now private but will be made public upon papers' acceptance.
 
 ## Data availability
 

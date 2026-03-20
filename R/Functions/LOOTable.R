@@ -2,6 +2,7 @@
 # Study, experiment or effect size
 # in a leave-one-out fashion (e.g. removing one study/experiment/effect size at a time
 # only works for intercept-only models for now
+  # updated: also works for models including additional moderators
 
 # Argument description:
   # -- df: the dataset used to fit the model
@@ -27,7 +28,7 @@ LOOTable <- function(df, int.model, ES_var, level) {
   # In this loop we extract beta and CIs for each model missing one study
   for(i in LOO.table$level) {
     
-    print(i)
+    #print(i)
     
     sub <- df %>% 
       filter(!!sym(level) != i) 
@@ -41,9 +42,9 @@ LOOTable <- function(df, int.model, ES_var, level) {
     mod <- update(int.model, V = vcovMat, data = sub)
     
     lvs <- LOO.table$level == i
-    LOO.table[lvs, "beta"] <- mod$beta
-    LOO.table[lvs, "ci.lb"] <- mod$ci.lb
-    LOO.table[lvs, "ci.ub"] <- mod$ci.ub
+    LOO.table[lvs, "beta"] <- mod$beta[1]
+    LOO.table[lvs, "ci.lb"] <- mod$ci.lb[1]
+    LOO.table[lvs, "ci.ub"] <- mod$ci.ub[1]
     
   }
   

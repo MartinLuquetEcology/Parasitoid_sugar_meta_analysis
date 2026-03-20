@@ -25,14 +25,14 @@ LOOForest <- function(tab, int.model, level, ord = TRUE) {
                lwd = 1,
                col = "darkgrey") +
     # The red line is the beta from the full intercept-only model
-    geom_vline(xintercept = coef(int.model),
+    geom_vline(xintercept = coef(int.model)[1],
                col = "red",
                linetype = "dashed",
                lwd = 1) + 
-    geom_vline(xintercept = int.model$ci.lb, 
+    geom_vline(xintercept = int.model$ci.lb[1], 
                col="red", 
                linetype="dashed") +
-    geom_vline(xintercept = int.model$ci.ub,
+    geom_vline(xintercept = int.model$ci.ub[1],
                col = "red",
                linetype = "dashed") +
     # The black line is 0

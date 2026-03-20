@@ -29,21 +29,25 @@ knitr::opts_chunk$set(echo = FALSE,
 
 # 1. Introduction
 
-In this appendix, we present a set of supplementary analyses, to test for the effect of additional moderators on parasitoid responses (and related outcomes) to sugar provisioning. These additional moderators are **the use (or absence of use) of insecticides** and **the species richness of plant mixtures used as nectar sources**. These are conducted as posthoc analyses: we use the models that were already fitted in the initial analysis (see *complete_analysis.Rmd*), and extend them by adding new moderators. We chose to proceed this way for different reasons:
+In this appendix, we present a set of supplementary analyses, to test for the effect of additional factors on parasitoid responses (and related outcomes) to sugar provisioning. These additional factors are **the use (or absence of use) of insecticides**, **the species richness of plant mixtures used as nectar sources, and the 'unambiguous' status of the test (direct test of sugar provision vs multiple potential effects from nectar-producing plants)**. These are conducted as posthoc analyses.
+
+For the first two factors (insecticides and plant mixture diversity) we use the models that were already fitted in the initial analysis (see *complete_analysis.Rmd*), and extend them by adding new moderators. We chose to proceed this way for different reasons:
 
 -   First, these analyses were requested during the peer review process, and were therefore not defined during our initial hypothesis framework. To ensure methodological consistency, but also transparency - in particular, to avoid questionable practices such as **HARKing** (*Hypothesis after Results are Known*, Fraser et al. 2018) - it seemed justified to treat these analyses as additional exploratory analyses that were decided *a posteriori.*
 
--   Second, as we will see below, thse analyses could only be made using a subset of the initial dataset, either because of a lack of data (many unreported cases), or because of the scope of the moderator itself (species richness concerns nectar studies only, and not studies using artificial sugars as a treatment). Thus, just adding these moderators to initial models would have led to a loss of useful information.
+-   Second, as we will see below, these analyses could only be made using a subset of the initial dataset, either because of a lack of data (many unreported cases), or because of the scope of the moderator itself (species richness concerns nectar studies only, and not studies using artificial sugars as a treatment). Thus, just adding these moderators to initial models would have led to a loss of useful information.
 
 -   Finally, as we will also see below, many of these analyses are associated with low sample size, poor model fit, and/or weak signal detection that require cautious interpretation. Presenting them as additional analyses allows us to clearly emphasize their preliminary and exploratory nature.
 
-The following document is a step-by-step guide showing how these posthoc analyses were made, and their results. As you will see, the general procedure is always the same for a given response :
+The following document is a step-by-step guide showing how these posthoc analyses were made, and their results. As you will see, the general procedure is the same for a given response :
 
 -   We use the models already fitted in the initial analysis (*complete_analysis.Rmd*),refitted on the relevant data subset, as a 'null' reference model.
 
 -   To test for the effect of a desired moderator, we add it as a fixed effect to the null model.
 
 -   We then apply a series of test (significance testing, AIC comparison, diagnostic plots) to evaluate the relevance of adding this moderator to the model - and thus, test if it has an effect on the response.
+
+For the third factor (ambiguousness of the test), we rather opt for a sensitivity analysis, as suggested by a reviewer. This choice was motivated by the very limited number of studies meeting the criteria for unambiguous tests, which resulted in a dataset that was particularly highly reduced and unbalanced (see main manuscript and [5. Ambiguous vs unambiguous tests] for more details).
 
 Finally, note that for clarity, the figures and tables generated in this document are named following a different nomenclature than in the previous supplementary files: these will be referred to as `Fig. SPX` or `Table SPX`, with `P` standing for '*posthoc*'.
 
@@ -480,9 +484,9 @@ Some significance tests and visual exploration of effect sizes, however, indicat
 
 # 4. Nectar plant species richness
 
-## 4.1 Data availability {data-link="3.1 Data availability"}
+## 4.1 Data availability {data-link="4.1 Data availability"}
 
-Let us now test for the effect of nectar plant diversity (approximated here as the species richness of plants in mixtures used for sugar provisioning) on sugar supplementation outcomes. Again, we can start by looking for the availability of data in the dataset, for each outcome variable.
+Let us now test for the effect of nectar plant diversity (approximated here as the species richness of plants in mixtures used for sugar provisioning) on sugar supplementation outcomes. Again, we can start by looking at the availability of data in the dataset, for each outcome variable.
 
 ```{r Nectar plant richness - availability}
 
@@ -519,7 +523,7 @@ See also that data availability is very unbalanced across nectar plant diversity
   group_by(n_pl_categ) %>%
   summarise(across(c(Parasitoid_abundance, Parasitism_rate, Pest_density, Yield), ~sum(.x, na.rm = T))) %>%
     rename('Number of plant species' = n_pl_categ) %>%
-  kable(caption = "Table SP3. Number of effect sizes available for each level of nectar plant richness in sugar supplementation experiments (one or more).")
+  kable(caption = "Table SP4. Number of effect sizes available for each level of nectar plant richness in sugar supplementation experiments (one or more).")
 ```
 
 ## 4.2 Fitting models
@@ -923,4 +927,127 @@ So far, our investigations do not allow us to conclude for any influence of nect
 
 In the end, we cannot overrule the existence of any effect of richness in plant mixtures, but at this step we see no sign for such effects.
 
-# 5. References
+# 5. Ambiguous *vs* unambiguous tests
+
+## 5.1 Data availability {data-link="5.1 Data availability"}
+
+Finally, let us distinguish the effects of *direct* tests of sugar provision *versus* more ambiguous tests. Indeed, in nectar studies, the manipulation often consists in modifying plant biodiversity in the treatment compared to the control (adding one or more nectar-producing plants): while we selected studies in which the expected effect indeed is sugar supplementation, this could imply potential other mechanisms (*e.g.* provision of other resources, plants that attract/repel pests, etc.). As explained in the manuscript, we will consider studies as "direct" tests of sugar providing if:
+
+-   the treatment is an artificial sugar source (in our case, in all such studies, the only difference between the treatment and the control is the presence of sugar, through spraying).
+
+-   the treatment contains the same plant biodiversity as the control, and only nectar production was prevented (*e.g.* through nectar cutting).
+
+We can extract such studies using the `Control_type` column in our dataset. The `No_sugar` and `No_nectar` levels correspond to the above mentioned cases, respectively (please refer to the [shared repository](https://osf.io/uk765/files/osfstorage) for more details). All effect sizes corresponding to these levels will be assigned an `unambiguous` status in a new `Test_status` column. All other effect sizes will be assigned as `ambiguous`.
+
+Again, let us start by looking at the distribution of the data in each of these status (Table SP5).
+
+```{r Test status - distribution}
+
+meta.tab %>% 
+    # Defining the new column here
+  mutate(Test_status = ifelse(Control_type %in% c('No_nectar', 'No_sugar'), 'Unambiguous', 'Ambiguous')) %>%
+  group_by(Test_status, Control_type, Variable) %>%
+  count %>%
+  pivot_wider(names_from = Variable, values_from = n) %>%
+  dplyr::select(Parasitoid_abundance, Parasitism_rate, Pest_density, Yield) %>%
+  replace(is.na(.), 0) %>% 
+  kable(caption = "Table SP5. Number of effect sizes available for different control types, corresponding to ambiguous vs unambiguous tests of sugar providing.")
+```
+
+As you can see, we get very few actual 'direct', strictly unambiguous tests of sugar provision: according to response variables, these represent 10 to 18 effect sizes, and mainly concern studies manipulating artificial sugar sources. Note as well that we have no unambiguous tests of sugar providing for parasitoids on the final yield outcome.
+
+## 5.2 Sensitivity analyses
+
+We can now try assessing how the (un-)ambiguousness affects outcomes through a sensitivity analysis. To do so, we simply-refit the model on reduced sections of the dataset, either including or excluding one of the two categories.
+
+The following graphs can be read as follows: the bold, red dashed line corresponds to the overall effect (*i.e.* the intercept) in the final model selected for a given response variable. The thin, red lines indicate its confidence intervals. Then, we have two "betas", each corresponding to the intercept obtained when was level was *excluded*. That means that if we want to see what estimate we get when fitting the model to the **Unambiguous** cases only, we have to look at the "Ambiguous" row on the graph: the value of the dot corresponds to the overall effect obtained when all ambiguous cases were excluded (and thus, only the unambiguous cases retained). We also have the associated 95% confidence intervals, in black. The grey, horizontal dashed line simply corresponds to the mean of betas obtained for each category (not really relevant here), and the black, plain vertical line corresponds to an intercept of zero.
+
+```{r Loading data and functions}
+
+# A. Data used for sensitivity analyses and final model versions
+meta_tab_ambig <- 
+meta.tab %>% 
+    # Defining the new column here
+  mutate(Test_status = ifelse(Control_type %in% c('No_nectar', 'No_sugar'), 'Unambiguous', 'Ambiguous'))
+
+# B. Loading functions for sensitivity analyses
+source('R/Functions/saForest.R') 
+source('R/Functions/LOOTable.R') 
+source('R/Functions/LOOForest.R') 
+
+```
+
+### 5.2.1 Parasitoid abundance
+
+For the meta-analysis of parasitoid abundance mean (Fig. SP14), we can see that when removing ambiguous cases (bottom row), we get a very different intercept estimate than compared to that of the full model (more than twice the size, with non-overlapping confidence intervals). We do not get the same for the meta-analysis on variance, but see the huge confidence intervals (Fig. SP15).
+
+```{r Test ambiguousness - parasitoid abundance mean, fig.cap = "Figure SP14. Sensitivity analyses of the effect of test ambiguousness (explicit vs less explicit tests of sugar provision) on parasitoid abundance mean. See 5.2 Sensitivity analyses for instructions on how to read these graphs."}
+
+meta_tab_ambig_parAb <-  
+  meta_tab_ambig %>%
+  filter(Variable == 'Parasitoid_abundance')
+
+  # Mean
+saForest(meta_tab_ambig_parAb, mod_parAb_mean, "lnRR_vi", "Test_status") +
+  labs(title = 'Parasitoid abundance - mean', subtitle = 'Sensitivity analysis for test ambiguousness', size = 'Number of \nexcluded ES', y = NULL)
+```
+
+```{r Test ambiguousness - parasitoid abundance variance, fig.cap = "Figure SP15. Sensitivity analyses of the effect of test ambiguousness (explicit vs less explicit tests of sugar provision) on parasitoid abundance variance. See 5.2 Sensitivity analyses for instructions on how to read these graphs."}
+
+  # Var
+saForest(meta_tab_ambig_parAb, mod_parAb_var, "lnCVR_vi", "Test_status") +
+  labs(title = 'Parasitoid abundance - variance', subtitle = 'Sensitivity analysis for test ambiguousness', size = 'Number of \nexcluded ES', y = NULL)
+```
+
+### 5.2.2 Parasitism rate
+
+For sensitivity analyses on parasitism rates, we do not get clear deviation from the beta estimated in the full model when excluding ambiguous cases (Fig. SP16-17). For the meta-analysis on mean, overall mean estimates seem to remain consistent over the two categories. However, note again the huge confidence intervals, both for mean and variance.
+
+```{r Test ambiguousness - parasitism rate mean, fig.cap = "Figure SP16. Sensitivity analyses of the effect of test ambiguousness (explicit vs less explicit tests of sugar provision) on parasitism rate mean. See 5.2 Sensitivity analyses for instructions on how to read these graphs."}
+
+meta_tab_ambig_parR <-  
+  meta_tab_ambig %>%
+  filter(Variable == 'Parasitism_rate')
+
+  # Mean
+saForest(meta_tab_ambig_parR, mod_parR_mean, "lnRR_vi", "Test_status") +
+  labs(title = 'Parasitism rate - mean', subtitle = 'Sensitivity analysis for test ambiguousness', size = 'Number of \nexcluded ES', y = NULL)
+
+```
+
+```{r Test ambiguousness - parasitism rate variance, fig.cap = "Figure SP17. Sensitivity analyses of the effect of test ambiguousness (explicit vs less explicit tests of sugar provision) on parasitism rate variance. See 5.2 Sensitivity analyses for instructions on how to read these graphs."}
+
+  # Var
+saForest(meta_tab_ambig_parR, mod_parR_var, "lnCVR_vi", "Test_status") +
+  labs(title = 'Parasitism rate - variance', subtitle = 'Sensitivity analysis for test ambiguousness', size = 'Number of \nexcluded ES', y = NULL)
+
+```
+
+### 5.2.3 Pest density
+
+For pest density, the qualitative conclusion is the same than for parasitism rate, but again see the huge confidence intervals (Fig. SP18-19).
+
+```{r Test ambiguousness - pest density mean, fig.cap = "Figure SP18. Sensitivity analyses of the effect of test ambiguousness (explicit vs less explicit tests of sugar provision) on pest density mean. See 5.2 Sensitivity analyses for instructions on how to read these graphs."}
+
+meta_tab_ambig_pestD <-  
+  meta_tab_ambig %>%
+  filter(Variable == 'Pest_density')
+
+  # Mean
+saForest(meta_tab_ambig_pestD, mod_pD_mean, "lnRR_vi", "Test_status") +
+  labs(title = 'Pest density - mean', subtitle = 'Sensitivity analysis for test ambiguousness', size = 'Number of \nexcluded ES', y = NULL)
+
+```
+
+```{r Test ambiguousness - pest density variance, fig.cap = "Figure SP19. Sensitivity analyses of the effect of test ambiguousness (explicit vs less explicit tests of sugar provision) on pest density variance. See 5.2 Sensitivity analyses for instructions on how to read these graphs."}
+
+  # Var
+saForest(meta_tab_ambig_pestD, mod_pD_var, "lnCVR_vi", "Test_status") +
+  labs(title = 'Pest density - variance', subtitle = 'Sensitivity analysis for test ambiguousness', size = 'Number of \nexcluded ES', y = NULL)
+```
+
+## 5.3 Conclusions on the "explicitness" of tests of sugar provision
+
+Our data clearly indicate that there are few studies that actually test for the effects of sugar provisioning directly, *i.e.* that explicitly test the mechanism of sugar providing rather than increasing plant biodiversity in hope of bringing additional sugar resources (among other potential mechanisms)\*. Thus, we do not have enough data to clearly see if using indirect tests to answer that question influences quantitative outcomes. However, even with the few data at our disposal, sensitivity analyses indicate that results could clearly deviate whether we consider more vs less explicit tests (see [5.2.1 Parasitoid abundance]). This indicates that we should be even more cautious than we already were when reading our results, at least when interpreting them in terms of ecological mechanisms.
+
+# 6. References

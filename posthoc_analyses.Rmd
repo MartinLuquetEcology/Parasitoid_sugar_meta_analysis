@@ -1,5 +1,5 @@
 ---
-title: "Global meta-analysis reveals positive effects of sugar provisioning on parasitoids in agroecosystems, without conclusive evidence for reduced pest densities"
+title: "Sugar provisioning increases parasitoid numbers in agroecosystems but may not reduce pest densities: a meta-analysis"
 subtitle: "Appendix S3 - Posthoc analyses"
 author: "Martin Luquet, Blas Lavandero, Emmanuel Desouhant, Bruno Jaloux"
 date: "`r format(Sys.time(), '%Y/%m/%d')` - first created on 2026/02/03"
@@ -977,7 +977,7 @@ source('R/Functions/LOOForest.R')
 
 ```
 
-### 5.2.1 Parasitoid abundance
+### 5.2.1 Parasitoid abundance {#parasitoid-abundance-2}
 
 For the meta-analysis of parasitoid abundance mean (Fig. SP14), we can see that when removing ambiguous cases (bottom row), we get a very different intercept estimate than compared to that of the full model (more than twice the size, with non-overlapping confidence intervals). We do not get the same for the meta-analysis on variance, but see the huge confidence intervals (Fig. SP15).
 
@@ -1048,6 +1048,6 @@ saForest(meta_tab_ambig_pestD, mod_pD_var, "lnCVR_vi", "Test_status") +
 
 ## 5.3 Conclusions on the "explicitness" of tests of sugar provision
 
-Our data clearly indicate that there are few studies that actually test for the effects of sugar provisioning directly, *i.e.* that explicitly test the mechanism of sugar providing rather than increasing plant biodiversity in hope of bringing additional sugar resources (among other potential mechanisms)\*. Thus, we do not have enough data to clearly see if using indirect tests to answer that question influences quantitative outcomes. However, even with the few data at our disposal, sensitivity analyses indicate that results could clearly deviate whether we consider more vs less explicit tests (see [5.2.1 Parasitoid abundance]). This indicates that we should be even more cautious than we already were when reading our results, at least when interpreting them in terms of ecological mechanisms.
+Our data clearly indicate that there are few studies that actually test for the effects of sugar provisioning directly, *i.e.* that explicitly test the mechanism of sugar providing rather than increasing plant biodiversity in hope of bringing additional sugar resources (among other potential mechanisms)\*. Thus, we do not have enough data to clearly see if using indirect tests to answer that question influences quantitative outcomes. However, even with the few data at our disposal, sensitivity analyses indicate that results could clearly deviate whether we consider more vs less explicit tests (see [5.2.1 Parasitoid abundance](#parasitoid-abundance-2)). This indicates that we should be even more cautious than we already were when reading our results, at least when interpreting them in terms of ecological mechanisms.
 
 # 6. References

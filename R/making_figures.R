@@ -323,7 +323,8 @@ fig_4 <-
     fig_4_legend,
     ncol = 1,
     heights = c(20, 1.5)) +
-  theme(panel.background = element_rect(fill='white'))
+  theme(panel.background = element_rect(fill = 'white'),
+        panel.border = element_rect(fill = NA))
 
 
 fig_4
@@ -331,14 +332,13 @@ fig_4
   # Saving
 if(save_fig4) {
   
-  # World
   ggsave(
     'Outputs/Figures/fig_4.png',
     fig_4,
     unit = 'cm',
     height = 20,
     width = 16,
-    dpi = 600
+    dpi = 1000
   )
   
 }

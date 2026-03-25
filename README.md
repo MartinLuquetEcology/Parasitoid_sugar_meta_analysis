@@ -1,14 +1,14 @@
 # Parasitoid sugar meta-analysis
 
-This is the script accompanying the paper ***Global meta-analysis reveals positive effects of sugar provisioning on parasitoids in agroecosystems, without conclusive evidence for reduced pest densities*** by Martin Luquet, Blas Lavandero, Emmanuel Desouhant and Bruno Jaloux. It is now private but will be made public upon papers' acceptance.
+This is the script accompanying the paper ***Sugar provisioning increases parasitoid numbers in agroecosystems but may not reduce pest densities: a meta-analysis*** by Martin Luquet, Blas Lavandero, Emmanuel Desouhant and Bruno Jaloux, published in the Journal of Applied Ecology (2026).
 
 ## Data availability
 
-All the data and associated metadata can be found in the relevant OSF project (**link will be pasted here upon the paper's acceptance**). Please note that you do not need to download the data to run the scripts; it will be downloaded automatically.
+All the data and associated metadata can be found in the relevant OSF project (https://osf.io/uk765/). Please note that you do not need to download the data to run the scripts; it will be downloaded automatically.
 
 ## Code execution
 
-To reproduce analyses, you just need to open the R project `Parasitoid_sugar_meta_analysis.Rproj` in the main folder. To work on the script directly, you can then launch `R/main_script.R`. For a more detailed version, with additional comments and guidance at each step, you can launch `complete_analysis.Rmd` in the main folder. This will reproduce the Appendix S2 in the `.pdf` file accompanying the paper (**link will be placed here upon the paper's acceptance**). Besides, the `posthoc_analyses.Rmd` will generate additional analyses that were discussed in the paper and reproduce the Appendix S3 `.pdf` file (**link will be placed here upon the paper's acceptance**).
+To reproduce analyses, you just need to open the R project `Parasitoid_sugar_meta_analysis.Rproj` in the main folder. To work on the script directly, you can then launch `R/main_script.R`. For a more detailed version, with additional comments and guidance at each step, you can launch `complete_analysis.Rmd` in the main folder. This will reproduce the Appendix S2 in the `.pdf` file accompanying the paper. Besides, the `posthoc_analyses.Rmd` will generate additional analyses that were discussed in the paper and reproduce the Appendix S3 `.pdf` file.
 
 ## Session information
 

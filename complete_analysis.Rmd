@@ -30,7 +30,7 @@ knitr::opts_chunk$set(echo = TRUE,
 
 # 1. Introduction
 
-This supplementary material provides a step by step description of the methodology we employed in the systematic review and meta-analysis which is the topic of the paper *Does sugar provisioning benefit biological control by parasitoids in agroecosystems? A systematic review and meta-analysis*. This is a RMarkDown document displaying all produced outputs, including those that could not be presented in the paper main text.
+This supplementary material provides a step by step description of the methodology we employed in the systematic review and meta-analysis which is the topic of the paper *Sugar provisioning increases parasitoid numbers in agroecosystems but may not reduce pest densities: a meta-analysis* by Luquet et al. in the Journal of Applied Ecology (2026). This is a RMarkDown document displaying all produced outputs, including those that could not be presented in the paper main text.
 
 The analysis presented here follows the identification of papers suitable for systematic review and meta-analysis described in **Appendix S1**.
 

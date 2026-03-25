@@ -117,7 +117,7 @@ if(save_fig2) {
     unit = 'cm',
     height = 9,
     width = 15,
-    dpi = 600
+    dpi = 1000
   )
   
   # EU
@@ -127,7 +127,7 @@ if(save_fig2) {
     unit = 'cm',
     height = 7,
     width = 6,
-    dpi = 600
+    dpi = 1000
   )
   
   # USA
@@ -137,37 +137,37 @@ if(save_fig2) {
     unit = 'cm',
     height = 6,
     width = 6,
-    dpi = 600
+    dpi = 1000
   )
   
   # Map legends
   ggsave(
     'Outputs/Figures/fig_2_map_legend_fs.png',
     fig_2_map_legend_fs,
-    dpi = 600
+    dpi = 1000
   )
   
   ggsave(
     'Outputs/Figures/fig_2_map_legend_incl.png',
     fig_2_map_legend_incl,
-    dpi = 600
+    dpi = 1000
   )
   
-  # Dynamics of publication
+  # Dynamics of publication over time
   ggsave(
     'Outputs/Figures/fig_2_dyn.png',
     fig_2_dyn,
     unit = 'cm',
     height = 4,
     width = 6,
-    dpi = 600
+    dpi = 1000
   )
   
   # Dynamics of publication legend
   ggsave(
     'Outputs/Figures/fig_2_dyn_legend.png',
     fig_2_dyn_legend,
-    dpi = 600
+    dpi = 1000
   )
   
 }

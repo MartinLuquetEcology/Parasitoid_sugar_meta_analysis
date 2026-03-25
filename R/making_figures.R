@@ -323,7 +323,8 @@ fig_4 <-
     fig_4_legend,
     ncol = 1,
     heights = c(20, 1.5)) +
-  theme(panel.background = element_rect(fill = 'white'))
+  theme(panel.background = element_rect(fill = 'white'),
+        panel.border = element_rect(fill = NA, color = 'white'))
 
 
 fig_4

@@ -257,7 +257,7 @@ if(save_fig3) {
     unit = 'cm',
     height = 12,
     width = 16,
-    dpi = 600
+    dpi = 1000
     )
   
 }

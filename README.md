@@ -2,6 +2,8 @@
 
 This is the script accompanying the paper ***Sugar provisioning increases parasitoid numbers in agroecosystems but may not reduce pest densities: a meta-analysis*** by Martin Luquet, Blas Lavandero, Emmanuel Desouhant and Bruno Jaloux, published in the Journal of Applied Ecology (2026).
 
+For any question, feel free to contact me at martin.luquet.pro@gmail.com
+
 ## Data availability
 
 All the data and associated metadata can be found in the relevant OSF project (https://osf.io/uk765/). Please note that you do not need to download the data to run the scripts; it will be downloaded automatically.
